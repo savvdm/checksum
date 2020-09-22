@@ -13,15 +13,16 @@ func help() {
 	fmt.Println("Specify checsum file name")
 }
 
-func check(e error) {
+func check(e error, code int) {
 	if e != nil {
-		panic(e)
+		fmt.Println(e)
+		os.Exit(code)
 	}
 }
 
 func readData(file string) {
 	f, err := os.Open(file)
-	check(err)
+	check(err, 3)
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
@@ -29,7 +30,7 @@ func readData(file string) {
 		data[fields[1]] = fields[0]                       // TODO: check for duplicate keys
 	}
 	err = scanner.Err()
-	check(err)
+	check(err, 4)
 }
 
 func main() {
