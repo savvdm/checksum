@@ -1,9 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
-	"time"
 )
 
 var data map[string]string
@@ -12,8 +12,22 @@ func help() {
 	fmt.Println("Specify checsum file name")
 }
 
-func readData(file string) (time.Time, error) {
-	return time.Now(), nil
+func check(e error) {
+	if e != nil {
+		panic(e)
+	}
+}
+
+func readData(file string) {
+	f, err := os.Open(file)
+	check(err)
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		fmt.Println(scanner.Text()) // Println will add back the final '\n'
+	}
+	err = scanner.Err()
+	check(err)
 }
 
 func main() {
@@ -25,10 +39,5 @@ func main() {
 
 	data = make(map[string]string)
 
-	var checksumTime time.Time
-	if checksumTime, err := readData(os.Args[1]); err != nil {
-		fmt.Println(err)
-		os.Exit(2)
-	}
-
+	readData(os.Args[1])
 }
