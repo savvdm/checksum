@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strings"
 )
 
 var data map[string]string
@@ -24,7 +25,8 @@ func readData(file string) {
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
-		fmt.Println(scanner.Text()) // Println will add back the final '\n'
+		fields := strings.SplitN(scanner.Text(), "  ", 2) // Two space separator used by sha1sum on Linux
+		fmt.Printf("%s => %s\n", fields[0], fields[1])
 	}
 	err = scanner.Err()
 	check(err)
