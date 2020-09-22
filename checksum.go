@@ -9,6 +9,8 @@ import (
 
 var data map[string]string
 
+const separator = "  " // Two-space separator used by sha1sum on Linux
+
 func help() {
 	fmt.Println("Specify checsum file name")
 }
@@ -26,8 +28,9 @@ func readData(file string) {
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
-		fields := strings.SplitN(scanner.Text(), "  ", 2) // Two space separator used by sha1sum on Linux
-		data[fields[1]] = fields[0]                       // TODO: check for duplicate keys
+		fields := strings.SplitN(scanner.Text(), separator, 2)
+		checksum, file := fields[0], fields[1]
+		data[file] = checksum // TODO: check for duplicate keys
 	}
 	err = scanner.Err()
 	check(err, 4)
