@@ -26,7 +26,7 @@ func readData(file string) {
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		fields := strings.SplitN(scanner.Text(), "  ", 2) // Two space separator used by sha1sum on Linux
-		fmt.Printf("%s => %s\n", fields[0], fields[1])
+		data[fields[1]] = fields[0]                       // TODO: check for duplicate keys
 	}
 	err = scanner.Err()
 	check(err)
@@ -42,4 +42,6 @@ func main() {
 	data = make(map[string]string)
 
 	readData(os.Args[1])
+
+	fmt.Printf("Read %d checksums\n", len(data))
 }
