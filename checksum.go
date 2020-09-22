@@ -23,6 +23,11 @@ func check(e error, code int) {
 }
 
 func readData(file string) {
+	_, err := os.Stat(file)
+	if os.IsNotExist(err) {
+		return // input file not found, ok
+	}
+
 	f, err := os.Open(file)
 	check(err, 3)
 
