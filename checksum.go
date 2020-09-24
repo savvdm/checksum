@@ -132,14 +132,8 @@ func caclChecksum(file string) (checksum []byte, err error) {
 	return
 }
 
-func writeData(csfile string) int {
-	f, err := os.Create(csfile)
-	check(err, 10)
-	defer f.Close()
-
-	w := bufio.NewWriter(f)
-
-	// sort files, dropping removed ones on the way
+// build list of files, dropping removed (not visited) files
+func buildFileList() []string {
 	files := make([]string, 0, len(data))
 	for file := range data {
 		if _, ok := visited[file]; ok {
@@ -150,7 +144,16 @@ func writeData(csfile string) int {
 			deletedCount++
 		}
 	}
-	sort.Strings(files)
+	return files
+}
+
+// write data for the given (sorted) files to the specified file
+func writeData(csfile string, files []string) {
+	f, err := os.Create(csfile)
+	check(err, 10)
+	defer f.Close()
+
+	w := bufio.NewWriter(f)
 
 	// write data
 	for _, file := range files {
@@ -161,7 +164,6 @@ func writeData(csfile string) int {
 
 	err = w.Flush()
 	check(err, 10)
-	return len(files)
 }
 
 func main() {
@@ -199,11 +201,18 @@ func main() {
 		// TODO: verify existing checksums with --check
 	})
 
-	writtenCount := writeData(dataFile)
+	files := buildFileList()
+	changed := addedCount > 0 || deletedCount > 0 // don't write file unless changed
+	if changed {
+		sort.Strings(files)
+		writeData(dataFile, files)
+	}
 
 	fmt.Printf("Visited: %d\n", len(visited))
 	fmt.Printf("Added: %d\n", addedCount)
 	fmt.Printf("Deleted: %d\n", deletedCount)
-	fmt.Printf("Written: %d\n", writtenCount)
+	if changed {
+		fmt.Printf("Written: %d\n", len(files))
+	}
 	fmt.Printf("Errors: %d\n", errorCount)
 }
