@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 
 var data map[string][]byte
 var errorCount int
+var addedCount int
 
 const separator = "  " // Two-space separator used by sha1sum on Linux
 
@@ -23,6 +25,11 @@ func check(e error, code int) {
 		fmt.Println(e)
 		os.Exit(code)
 	}
+}
+
+func registerError(e error) {
+	fmt.Println(e)
+	errorCount++
 }
 
 func parseLine(line string) (file string, checksum []byte) {
@@ -85,8 +92,7 @@ func makePath(path, name string) string {
 func readDir(root string, prefix string, callback func(path string)) {
 	f, err := os.Open(root)
 	if err != nil {
-		fmt.Println(err)
-		errorCount++
+		registerError(err)
 		return
 	}
 	defer f.Close()
@@ -108,9 +114,24 @@ func readDir(root string, prefix string, callback func(path string)) {
 		info, err = f.Readdir(buflen)
 	}
 	if err != io.EOF {
-		fmt.Println(err)
-		errorCount++
+		registerError(err)
 	}
+}
+
+func checksumFile(file string) (checksum []byte, err error) {
+	f, err := os.Open(file)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	h := sha1.New()
+	if _, err = io.Copy(h, f); err != nil {
+		return
+	}
+
+	checksum = h.Sum(nil)
+	return
 }
 
 func main() {
@@ -131,10 +152,20 @@ func main() {
 	}
 
 	count := 0
-	readDir(root, "", func(path string) {
+	readDir(root, "", func(file string) {
+		if _, ok := data[file]; !ok {
+			if checksum, err := checksumFile(file); err == nil {
+				data[file] = checksum
+				fmt.Printf("A %s\n", file)
+				addedCount++
+			} else {
+				registerError(err)
+			}
+		}
 		// fmt.Println(path)
 		count++
 	})
 
-	fmt.Printf("%s: %d files, %d errors\n", root, count, errorCount)
+	fmt.Printf("Added: %d\n", addedCount)
+	fmt.Printf("Errors: %d\n", errorCount)
 }
