@@ -11,6 +11,8 @@ import (
 )
 
 var data map[string][]byte
+var visited map[string]bool
+
 var errorCount int
 var addedCount int
 
@@ -142,6 +144,7 @@ func main() {
 	}
 
 	data = make(map[string][]byte)
+	visited = make(map[string]bool)
 
 	readData(os.Args[1])
 	fmt.Printf("Read %d checksums\n", len(data))
@@ -153,8 +156,11 @@ func main() {
 
 	count := 0
 	readDir(root, "", func(file string) {
+		visited[file] = true
 		if _, ok := data[file]; !ok {
-			if checksum, err := checksumFile(file); err == nil {
+			visited[file] = true
+			path := makePath(root, file)
+			if checksum, err := checksumFile(path); err == nil {
 				data[file] = checksum
 				fmt.Printf("A %s\n", file)
 				addedCount++
@@ -162,10 +168,11 @@ func main() {
 				registerError(err)
 			}
 		}
-		// fmt.Println(path)
+		// TODO: verify existing checksums with --check
 		count++
 	})
 
+	fmt.Printf("Visited: %d\n", len(visited))
 	fmt.Printf("Added: %d\n", addedCount)
 	fmt.Printf("Errors: %d\n", errorCount)
 }
