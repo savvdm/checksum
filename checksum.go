@@ -2,13 +2,14 @@ package main
 
 import (
 	"bufio"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 )
 
-var data map[string]string
+var data map[string][]byte
 var errorCount int
 
 const separator = "  " // Two-space separator used by sha1sum on Linux
@@ -24,15 +25,15 @@ func check(e error, code int) {
 	}
 }
 
-func parseLine(line string) (checksum, file string) {
+func parseLine(line string) (file string, checksum []byte) {
 	fields := strings.SplitN(line, separator, 2)
 	if len(fields) != 2 {
 		fmt.Printf("Invalid input line: '%s'\n", line)
 		os.Exit(5)
 	}
 
-	checksum, file = fields[0], fields[1]
-	if len(checksum) == 0 {
+	sum, file := fields[0], fields[1]
+	if len(sum) == 0 {
 		fmt.Printf("Invalid input - checksum is missing: '%s'\n", line)
 		os.Exit(5)
 	}
@@ -40,6 +41,13 @@ func parseLine(line string) (checksum, file string) {
 		fmt.Printf("Invalid input - file path is missing: '%s'\n", line)
 		os.Exit(5)
 	}
+
+	checksum, err := hex.DecodeString(sum)
+	if err != nil {
+		fmt.Printf("%s: %s %s\n", err, sum, file)
+		os.Exit(5)
+	}
+
 	return
 }
 
@@ -56,7 +64,7 @@ func readData(file string) {
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
-		checksum, file := parseLine(scanner.Text())
+		file, checksum := parseLine(scanner.Text())
 		data[file] = checksum // TODO: check for duplicate keys
 	}
 	err = scanner.Err()
@@ -112,7 +120,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	data = make(map[string]string)
+	data = make(map[string][]byte)
 
 	readData(os.Args[1])
 	fmt.Printf("Read %d checksums\n", len(data))
@@ -124,7 +132,7 @@ func main() {
 
 	count := 0
 	readDir(root, "", func(path string) {
-		fmt.Println(path)
+		// fmt.Println(path)
 		count++
 	})
 
