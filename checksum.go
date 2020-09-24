@@ -61,12 +61,6 @@ func parseLine(line string) (file string, checksum []byte) {
 }
 
 func readData(file string) {
-	_, err := os.Stat(file)
-	if os.IsNotExist(err) {
-		fmt.Println("File not found:", file)
-		return // input file not found, ok
-	}
-
 	f, err := os.Open(file)
 	check(err, 3)
 	defer f.Close()
