@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -15,6 +16,7 @@ var visited map[string]bool
 
 var errorCount int
 var addedCount int
+var deletedCount int
 
 const separator = "  " // Two-space separator used by sha1sum on Linux
 
@@ -60,8 +62,8 @@ func parseLine(line string) (file string, checksum []byte) {
 	return
 }
 
-func readData(file string) {
-	f, err := os.Open(file)
+func readData(csfile string) {
+	f, err := os.Open(csfile)
 	check(err, 3)
 	defer f.Close()
 
@@ -114,7 +116,7 @@ func readDir(root string, prefix string, callback func(path string)) {
 	}
 }
 
-func checksumFile(file string) (checksum []byte, err error) {
+func caclChecksum(file string) (checksum []byte, err error) {
 	f, err := os.Open(file)
 	if err != nil {
 		return
@@ -130,6 +132,38 @@ func checksumFile(file string) (checksum []byte, err error) {
 	return
 }
 
+func writeData(csfile string) int {
+	f, err := os.Create(csfile)
+	check(err, 10)
+	defer f.Close()
+
+	w := bufio.NewWriter(f)
+
+	// sort files, dropping removed ones on the way
+	files := make([]string, 0, len(data))
+	for file := range data {
+		if _, ok := visited[file]; ok {
+			files = append(files, file)
+		} else {
+			// file not found, dropping from list
+			fmt.Println("D", file)
+			deletedCount++
+		}
+	}
+	sort.Strings(files)
+
+	// write data
+	for _, file := range files {
+		strsum := hex.EncodeToString(data[file])
+		_, err = fmt.Fprintf(f, "%s%s%s\n", strsum, separator, file)
+		check(err, 10)
+	}
+
+	err = w.Flush()
+	check(err, 10)
+	return len(files)
+}
+
 func main() {
 
 	if len(os.Args) < 2 {
@@ -140,33 +174,36 @@ func main() {
 	data = make(map[string][]byte)
 	visited = make(map[string]bool)
 
-	readData(os.Args[1])
-	fmt.Printf("Read %d checksums\n", len(data))
+	dataFile := os.Args[1]
+	readData(dataFile)
+	fmt.Printf("Read: %d\n", len(data))
 
 	root := "."
 	if len(os.Args) > 2 {
 		root = os.Args[2]
 	}
 
-	count := 0
 	readDir(root, "", func(file string) {
 		visited[file] = true
 		if _, ok := data[file]; !ok {
 			visited[file] = true
 			path := makePath(root, file)
-			if checksum, err := checksumFile(path); err == nil {
+			if checksum, err := caclChecksum(path); err == nil {
 				data[file] = checksum
-				fmt.Printf("A %s\n", file)
+				fmt.Println("A", file)
 				addedCount++
 			} else {
 				registerError(err)
 			}
 		}
 		// TODO: verify existing checksums with --check
-		count++
 	})
+
+	writtenCount := writeData(dataFile)
 
 	fmt.Printf("Visited: %d\n", len(visited))
 	fmt.Printf("Added: %d\n", addedCount)
+	fmt.Printf("Deleted: %d\n", deletedCount)
+	fmt.Printf("Written: %d\n", writtenCount)
 	fmt.Printf("Errors: %d\n", errorCount)
 }
