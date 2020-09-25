@@ -99,6 +99,19 @@ func (data dataMap) write(csfile string, files []string) {
 	check(err, 10)
 }
 
+// report missing files
+// return the number of files missing
+func (data dataMap) reportMissing(visited visitedFilesMap) (deleted int) {
+	for file := range data {
+		if _, ok := visited[file]; !ok {
+			// file not found, dropping from list
+			fmt.Println("D", file)
+			deleted++
+		}
+	}
+	return
+}
+
 func makePath(path, name string) string {
 	switch {
 	case len(path) == 0:
@@ -155,22 +168,6 @@ func caclChecksum(file string) (checksum []byte, err error) {
 	return
 }
 
-// build list of files, dropping removed (not visited) files
-// dropped files are reported to the user
-func (data dataMap) buildFileList(visited visitedFilesMap) (files []string, deleted int) {
-	files = make([]string, 0, len(data))
-	for file := range data {
-		if _, ok := visited[file]; ok {
-			files = append(files, file)
-		} else {
-			// file not found, dropping from list
-			fmt.Println("D", file)
-			deleted++
-		}
-	}
-	return
-}
-
 func main() {
 
 	if len(os.Args) < 2 {
@@ -191,8 +188,10 @@ func main() {
 	}
 
 	added := 0
+	files := make([]string, 0, len(data)*2) // file list for writting
 	readDir(root, "", func(file string) {
 		visited[file] = true
+		files = append(files, file)
 		if _, ok := data[file]; !ok {
 			path := makePath(root, file)
 			if checksum, err := caclChecksum(path); err == nil {
@@ -206,7 +205,8 @@ func main() {
 		// TODO: verify existing checksums with --check
 	})
 
-	files, deleted := data.buildFileList(visited)
+	deleted := data.reportMissing(visited)
+
 	changed := added > 0 || deleted > 0 // don't write file unless changed
 	if changed {
 		sort.Strings(files)
@@ -216,8 +216,10 @@ func main() {
 	// print stats
 	fmt.Printf("Added: %d\n", added)
 	fmt.Printf("Deleted: %d\n", deleted)
+	fmt.Printf("Errors: %d\n", errorCount)
 	if changed {
 		fmt.Printf("Written: %d\n", len(files))
+	} else {
+		fmt.Println("No changes")
 	}
-	fmt.Printf("Errors: %d\n", errorCount)
 }
