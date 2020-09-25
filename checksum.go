@@ -14,11 +14,9 @@ import (
 type dataMap map[string][]byte
 type visitedFilesMap map[string]bool
 
-var errorCount int
-var addedCount int
-var deletedCount int
-
 const separator = "  " // Two-space separator used by sha1sum on Linux
+
+var errorCount int
 
 func help() {
 	fmt.Println("Specify checsum file name")
@@ -159,18 +157,18 @@ func caclChecksum(file string) (checksum []byte, err error) {
 
 // build list of files, dropping removed (not visited) files
 // dropped files are reported to the user
-func (data dataMap) buildFileList(visited visitedFilesMap) []string {
-	files := make([]string, 0, len(data))
+func (data dataMap) buildFileList(visited visitedFilesMap) (files []string, deleted int) {
+	files = make([]string, 0, len(data))
 	for file := range data {
 		if _, ok := visited[file]; ok {
 			files = append(files, file)
 		} else {
 			// file not found, dropping from list
 			fmt.Println("D", file)
-			deletedCount++
+			deleted++
 		}
 	}
-	return files
+	return
 }
 
 func main() {
@@ -192,6 +190,7 @@ func main() {
 		root = os.Args[2]
 	}
 
+	added := 0
 	readDir(root, "", func(file string) {
 		visited[file] = true
 		if _, ok := data[file]; !ok {
@@ -199,7 +198,7 @@ func main() {
 			if checksum, err := caclChecksum(path); err == nil {
 				data[file] = checksum
 				fmt.Println("A", file)
-				addedCount++
+				added++
 			} else {
 				registerError(err)
 			}
@@ -207,16 +206,16 @@ func main() {
 		// TODO: verify existing checksums with --check
 	})
 
-	files := data.buildFileList(visited)
-	changed := addedCount > 0 || deletedCount > 0 // don't write file unless changed
+	files, deleted := data.buildFileList(visited)
+	changed := added > 0 || deleted > 0 // don't write file unless changed
 	if changed {
 		sort.Strings(files)
 		data.write(dataFile, files)
 	}
 
-	fmt.Printf("Visited: %d\n", len(visited))
-	fmt.Printf("Added: %d\n", addedCount)
-	fmt.Printf("Deleted: %d\n", deletedCount)
+	// print stats
+	fmt.Printf("Added: %d\n", added)
+	fmt.Printf("Deleted: %d\n", deleted)
 	if changed {
 		fmt.Printf("Written: %d\n", len(files))
 	}
