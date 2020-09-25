@@ -11,8 +11,8 @@ import (
 	"strings"
 )
 
-var data map[string][]byte
-var visited map[string]bool
+type dataMap map[string][]byte
+type visitedFilesMap map[string]bool
 
 var errorCount int
 var addedCount int
@@ -36,6 +36,10 @@ func registerError(e error) {
 	errorCount++
 }
 
+// parse single line of the data file
+// input line sample (notice: separated by two space chars):
+// 2a8c416df19174d4fb421d8c9b9cddfd54914c45  Backup/Geo.tgz
+// file path may include spaces
 func parseLine(line string) (file string, checksum []byte) {
 	fields := strings.SplitN(line, separator, 2)
 	if len(fields) != 2 {
@@ -62,7 +66,9 @@ func parseLine(line string) (file string, checksum []byte) {
 	return
 }
 
-func readData(csfile string) {
+// read data map from the given file
+//
+func (data dataMap) read(csfile string) {
 	f, err := os.Open(csfile)
 	check(err, 3)
 	defer f.Close()
@@ -74,6 +80,25 @@ func readData(csfile string) {
 	}
 	err = scanner.Err()
 	check(err, 4)
+}
+
+// write data for the given (sorted) files to the specified file
+func (data dataMap) write(csfile string, files []string) {
+	f, err := os.Create(csfile)
+	check(err, 10)
+	defer f.Close()
+
+	w := bufio.NewWriter(f)
+
+	// write data
+	for _, file := range files {
+		strsum := hex.EncodeToString(data[file])
+		_, err = fmt.Fprintf(f, "%s%s%s\n", strsum, separator, file)
+		check(err, 10)
+	}
+
+	err = w.Flush()
+	check(err, 10)
 }
 
 func makePath(path, name string) string {
@@ -133,7 +158,8 @@ func caclChecksum(file string) (checksum []byte, err error) {
 }
 
 // build list of files, dropping removed (not visited) files
-func buildFileList() []string {
+// dropped files are reported to the user
+func (data dataMap) buildFileList(visited visitedFilesMap) []string {
 	files := make([]string, 0, len(data))
 	for file := range data {
 		if _, ok := visited[file]; ok {
@@ -147,25 +173,6 @@ func buildFileList() []string {
 	return files
 }
 
-// write data for the given (sorted) files to the specified file
-func writeData(csfile string, files []string) {
-	f, err := os.Create(csfile)
-	check(err, 10)
-	defer f.Close()
-
-	w := bufio.NewWriter(f)
-
-	// write data
-	for _, file := range files {
-		strsum := hex.EncodeToString(data[file])
-		_, err = fmt.Fprintf(f, "%s%s%s\n", strsum, separator, file)
-		check(err, 10)
-	}
-
-	err = w.Flush()
-	check(err, 10)
-}
-
 func main() {
 
 	if len(os.Args) < 2 {
@@ -173,11 +180,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	data = make(map[string][]byte)
-	visited = make(map[string]bool)
+	data := make(dataMap)
+	visited := make(visitedFilesMap)
 
 	dataFile := os.Args[1]
-	readData(dataFile)
+	data.read(dataFile)
 	fmt.Printf("Read: %d\n", len(data))
 
 	root := "."
@@ -188,7 +195,6 @@ func main() {
 	readDir(root, "", func(file string) {
 		visited[file] = true
 		if _, ok := data[file]; !ok {
-			visited[file] = true
 			path := makePath(root, file)
 			if checksum, err := caclChecksum(path); err == nil {
 				data[file] = checksum
@@ -201,11 +207,11 @@ func main() {
 		// TODO: verify existing checksums with --check
 	})
 
-	files := buildFileList()
+	files := data.buildFileList(visited)
 	changed := addedCount > 0 || deletedCount > 0 // don't write file unless changed
 	if changed {
 		sort.Strings(files)
-		writeData(dataFile, files)
+		data.write(dataFile, files)
 	}
 
 	fmt.Printf("Visited: %d\n", len(visited))
