@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha1"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -91,9 +92,25 @@ func caclChecksum(file string) (checksum []byte, err error) {
 	return
 }
 
+type excludePatterns []string
+
+func (excludes *excludePatterns) String() string {
+	return ""
+}
+
+func (excludes *excludePatterns) Set(value string) error {
+	*excludes = append(*excludes, value)
+	return nil
+}
+
 func main() {
 
-	if len(os.Args) < 2 {
+	var excludes excludePatterns
+
+	flag.Var(&excludes, "exclude", "File name pattern to exclude")
+	flag.Parse()
+
+	if flag.NArg() < 1 {
 		help()
 		os.Exit(1)
 	}
@@ -101,13 +118,13 @@ func main() {
 	data := make(dataMap)
 	visited := make(visitedFilesMap)
 
-	dataFile := os.Args[1]
+	dataFile := flag.Arg(0)
 	data.read(dataFile)
 	fmt.Printf("Read: %d\n", len(data))
 
 	root := "."
-	if len(os.Args) > 2 {
-		root = os.Args[2]
+	if flag.NArg() > 1 {
+		root = flag.Arg(1)
 	}
 
 	added := 0
