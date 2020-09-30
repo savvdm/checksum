@@ -9,6 +9,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 )
 
 type visitedFilesMap map[string]bool
@@ -48,7 +49,7 @@ func makePath(path, name string) string {
 	}
 }
 
-func readDir(root string, prefix string, callback func(path string)) {
+func readDir(root string, prefix string, callback func(path string, mod time.Time)) {
 	f, err := os.Open(root)
 	if err != nil {
 		registerError(err)
@@ -58,19 +59,19 @@ func readDir(root string, prefix string, callback func(path string)) {
 
 	const buflen = 100
 
-	info, err := f.Readdir(buflen)
+	files, err := f.Readdir(buflen)
 	for err == nil {
-		for _, file := range info {
+		for _, file := range files {
 			name := file.Name()
 			path := makePath(prefix, name)
 			if file.IsDir() {
 				subdir := makePath(root, name)
 				readDir(subdir, path, callback) // prefix current path
 			} else {
-				callback(path)
+				callback(path, file.ModTime())
 			}
 		}
-		info, err = f.Readdir(buflen)
+		files, err = f.Readdir(buflen)
 	}
 	if err != io.EOF {
 		registerError(err)
@@ -132,7 +133,7 @@ func main() {
 	added := 0
 	replaced := 0
 	files := make([]string, 0, len(data)*2) // file list for writting
-	readDir(root, "", func(file string) {
+	readDir(root, "", func(file string, mod time.Time) {
 		visited[file] = true
 		files = append(files, file)
 		if sum, ok := data[file]; !ok || *checkAll {
