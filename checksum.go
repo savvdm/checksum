@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"flag"
 	"fmt"
@@ -108,6 +109,7 @@ func main() {
 	var excludes excludePatterns
 
 	flag.Var(&excludes, "exclude", "File name pattern to exclude")
+	checkAll := flag.Bool("check", false, "Check all files")
 	flag.Parse()
 
 	if flag.NArg() < 1 {
@@ -128,18 +130,27 @@ func main() {
 	}
 
 	added := 0
+	replaced := 0
 	files := make([]string, 0, len(data)*2) // file list for writting
 	readDir(root, "", func(file string) {
 		visited[file] = true
 		files = append(files, file)
-		if _, ok := data[file]; !ok {
+		if sum, ok := data[file]; !ok || *checkAll {
 			path := makePath(root, file)
-			if checksum, err := caclChecksum(path); err == nil {
-				data[file] = checksum
-				fmt.Println("A", file)
-				added++
-			} else {
+			if checksum, err := caclChecksum(path); err != nil {
 				registerError(err)
+			} else {
+				if !ok {
+					data[file] = checksum
+					fmt.Println("A", file)
+					added++
+				} else {
+					if !bytes.Equal(sum, checksum) {
+						data[file] = checksum
+						fmt.Println("R", file)
+						replaced++
+					}
+				}
 			}
 		}
 		// TODO: verify existing checksums with --check
@@ -147,7 +158,7 @@ func main() {
 
 	deleted := data.reportMissing(visited)
 
-	changed := added > 0 || deleted > 0 // don't write file unless changed
+	changed := added+replaced+deleted > 0 // don't write file unless anything changed
 	if changed {
 		sort.Strings(files)
 		data.write(dataFile, files)
@@ -155,6 +166,7 @@ func main() {
 
 	// print stats
 	fmt.Printf("Added: %d\n", added)
+	fmt.Printf("Replaced: %d\n", added)
 	fmt.Printf("Deleted: %d\n", deleted)
 	fmt.Printf("Errors: %d\n", errorCount)
 	if changed {
