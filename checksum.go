@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -94,15 +95,24 @@ func caclChecksum(file string) (checksum []byte, err error) {
 	return
 }
 
-type excludePatterns []string
+type excludePatterns []*regexp.Regexp
 
 func (excludes *excludePatterns) String() string {
 	return ""
 }
 
 func (excludes *excludePatterns) Set(value string) error {
-	*excludes = append(*excludes, value)
+	*excludes = append(*excludes, regexp.MustCompile(value))
 	return nil
+}
+
+func (excludes *excludePatterns) match(file string) bool {
+	for _, patt := range *excludes {
+		if patt.MatchString(file) {
+			return true
+		}
+	}
+	return false
 }
 
 func main() {
@@ -133,8 +143,14 @@ func main() {
 	added := 0
 	replaced := 0
 	checked := 0
+	skipped := 0
 	files := make([]string, 0, len(data)*2) // file list for writting
 	readDir(root, "", func(file string, fileMod time.Time) {
+		if excludes.match(file) {
+			fmt.Println("S", file)
+			skipped++
+			return
+		}
 		visited[file] = true
 		files = append(files, file)
 		if sum, ok := data[file]; !ok || *checkAll || fileMod.After(inputMod) {
@@ -172,6 +188,7 @@ func main() {
 	fmt.Printf("Replaced: %d\n", replaced)
 	fmt.Printf("Deleted: %d\n", deleted)
 	fmt.Printf("Checked: %d\n", checked)
+	fmt.Printf("Skipped: %d\n", skipped)
 	fmt.Printf("Errors: %d\n", errorCount)
 	if changed {
 		fmt.Printf("Written: %d\n", len(files))
