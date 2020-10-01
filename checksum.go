@@ -15,15 +15,8 @@ import (
 
 type visitedFilesMap map[string]bool
 
-var errorCount int
-
 func help() {
 	fmt.Println("Specify checsum file name")
-}
-
-func registerError(e error) {
-	fmt.Println(e)
-	errorCount++
 }
 
 // report missing files
@@ -32,7 +25,7 @@ func (data dataMap) reportMissing(visited visitedFilesMap, status statusMap) {
 	for file := range data {
 		if _, ok := visited[file]; !ok {
 			// file not found - will not be saved
-			status.register(DELETED, file)
+			status.report(DELETED, file)
 		}
 	}
 	return
@@ -52,7 +45,7 @@ func makePath(path, name string) string {
 func readDir(root string, prefix string, callback func(path string, mod time.Time)) {
 	f, err := os.Open(root)
 	if err != nil {
-		registerError(err)
+		status.reportError(err)
 		return
 	}
 	defer f.Close()
@@ -74,7 +67,7 @@ func readDir(root string, prefix string, callback func(path string, mod time.Tim
 		files, err = f.Readdir(buflen)
 	}
 	if err != io.EOF {
-		registerError(err)
+		status.reportError(err)
 	}
 }
 
@@ -143,7 +136,7 @@ func main() {
 	files := make([]string, 0, len(data)*2) // file list for writting
 	readDir(root, "", func(file string, fileMod time.Time) {
 		if excludes.match(file) {
-			status.register(SKIPPED, file)
+			status.report(SKIPPED, file)
 			return
 		}
 		visited[file] = true
@@ -151,15 +144,15 @@ func main() {
 		if sum, ok := data[file]; !ok || *checkAll || fileMod.After(inputMod) {
 			path := makePath(root, file)
 			if checksum, err := caclChecksum(path); err != nil {
-				registerError(err)
+				status.reportError(err)
 			} else {
-				status.register(CHECKED, "") // don't print anything, just count
+				status.register(CHECKED)
 				if !ok {
-					status.register(ADDED, file)
+					status.report(ADDED, file)
 					data[file] = checksum
 				} else {
 					if !bytes.Equal(sum, checksum) {
-						status.register(REPLACED, file)
+						status.report(REPLACED, file)
 						data[file] = checksum
 					}
 				}
@@ -177,8 +170,7 @@ func main() {
 	}
 
 	// print stats
-	status.print([]string{ADDED, REPLACED, DELETED, CHECKED, SKIPPED})
-	fmt.Printf("Errors: %d\n", errorCount)
+	status.print([]string{ADDED, REPLACED, DELETED, CHECKED, SKIPPED, ERROR})
 	if changed {
 		fmt.Printf("Written: %d\n", len(files))
 	} else {

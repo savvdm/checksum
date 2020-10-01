@@ -6,23 +6,33 @@ import (
 
 type statusMap map[string]int
 
+var status = make(statusMap)
+
 const (
 	ADDED    = "Added"
 	REPLACED = "Replaced"
 	DELETED  = "Deleted"
 	CHECKED  = "Checked"
 	SKIPPED  = "Skipped"
+	ERROR    = "Error"
 )
 
-func (status statusMap) register(s string, file string) {
+func (status statusMap) register(s string) {
 	if v, ok := status[s]; ok {
 		status[s] = v + 1
 	} else {
 		status[s] = 1
 	}
-	if len(file) > 0 {
-		fmt.Println(string(s[0]), file)
-	}
+}
+
+func (status statusMap) report(s string, file string) {
+	status.register(s)
+	fmt.Println(string(s[0]), file)
+}
+
+func (status statusMap) reportError(e error) {
+	status.register(ERROR)
+	fmt.Println(e)
 }
 
 func (status statusMap) print(keys []string) {
