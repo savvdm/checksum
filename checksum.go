@@ -15,6 +15,8 @@ import (
 
 type visitedFilesMap map[string]bool
 
+type statusMap map[string]int
+
 var errorCount int
 
 func help() {
@@ -26,14 +28,45 @@ func registerError(e error) {
 	errorCount++
 }
 
+const (
+	ADDED    = "Added"
+	REPLACED = "Replaced"
+	DELETED  = "Deleted"
+	CHECKED  = "Checked"
+	SKIPPED  = "Skipped"
+)
+
+func (status statusMap) register(s string, file string) {
+	if v, ok := status[s]; ok {
+		status[s] = v + 1
+	} else {
+		status[s] = 1
+	}
+	if len(file) > 0 {
+		fmt.Println(string(s[0]), file)
+	}
+}
+
+func (status statusMap) print(keys []string) {
+	for _, s := range keys {
+		fmt.Printf("%s: %d\n", s, status[s])
+	}
+}
+
+func (status statusMap) sum(keys []string) (count int) {
+	for _, s := range keys {
+		count += status[s]
+	}
+	return
+}
+
 // report missing files
 // return the number of files missing
-func (data dataMap) reportMissing(visited visitedFilesMap) (deleted int) {
+func (data dataMap) reportMissing(visited visitedFilesMap, status statusMap) {
 	for file := range data {
 		if _, ok := visited[file]; !ok {
-			// file not found, dropping from list
-			fmt.Println("D", file)
-			deleted++
+			// file not found - will not be saved
+			status.register(DELETED, file)
 		}
 	}
 	return
@@ -140,15 +173,11 @@ func main() {
 		root = flag.Arg(1)
 	}
 
-	added := 0
-	replaced := 0
-	checked := 0
-	skipped := 0
+	status := make(statusMap)
 	files := make([]string, 0, len(data)*2) // file list for writting
 	readDir(root, "", func(file string, fileMod time.Time) {
 		if excludes.match(file) {
-			fmt.Println("S", file)
-			skipped++
+			status.register(SKIPPED, file)
 			return
 		}
 		visited[file] = true
@@ -158,16 +187,14 @@ func main() {
 			if checksum, err := caclChecksum(path); err != nil {
 				registerError(err)
 			} else {
-				checked++
+				status.register(CHECKED, "") // don't print anything, just count
 				if !ok {
+					status.register(ADDED, file)
 					data[file] = checksum
-					fmt.Println("A", file)
-					added++
 				} else {
 					if !bytes.Equal(sum, checksum) {
+						status.register(REPLACED, file)
 						data[file] = checksum
-						fmt.Println("R", file)
-						replaced++
 					}
 				}
 			}
@@ -175,20 +202,16 @@ func main() {
 		// TODO: verify existing checksums with --check
 	})
 
-	deleted := data.reportMissing(visited)
+	data.reportMissing(visited, status)
 
-	changed := added+replaced+deleted > 0 // don't write file unless anything changed
-	if changed {
+	changed := status.sum([]string{ADDED, REPLACED, DELETED}) > 0
+	if changed { // don't write file unless anything changed
 		sort.Strings(files)
 		data.write(dataFile, files)
 	}
 
 	// print stats
-	fmt.Printf("Added: %d\n", added)
-	fmt.Printf("Replaced: %d\n", replaced)
-	fmt.Printf("Deleted: %d\n", deleted)
-	fmt.Printf("Checked: %d\n", checked)
-	fmt.Printf("Skipped: %d\n", skipped)
+	status.print([]string{ADDED, REPLACED, DELETED, CHECKED, SKIPPED})
 	fmt.Printf("Errors: %d\n", errorCount)
 	if changed {
 		fmt.Printf("Written: %d\n", len(files))
