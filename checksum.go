@@ -122,7 +122,7 @@ func main() {
 	visited := make(visitedFilesMap)
 
 	dataFile := flag.Arg(0)
-	data.read(dataFile)
+	inputMod := data.read(dataFile)
 	fmt.Printf("Read: %d\n", len(data))
 
 	root := "."
@@ -132,15 +132,17 @@ func main() {
 
 	added := 0
 	replaced := 0
+	checked := 0
 	files := make([]string, 0, len(data)*2) // file list for writting
-	readDir(root, "", func(file string, mod time.Time) {
+	readDir(root, "", func(file string, fileMod time.Time) {
 		visited[file] = true
 		files = append(files, file)
-		if sum, ok := data[file]; !ok || *checkAll {
+		if sum, ok := data[file]; !ok || *checkAll || fileMod.After(inputMod) {
 			path := makePath(root, file)
 			if checksum, err := caclChecksum(path); err != nil {
 				registerError(err)
 			} else {
+				checked++
 				if !ok {
 					data[file] = checksum
 					fmt.Println("A", file)
@@ -167,8 +169,9 @@ func main() {
 
 	// print stats
 	fmt.Printf("Added: %d\n", added)
-	fmt.Printf("Replaced: %d\n", added)
+	fmt.Printf("Replaced: %d\n", replaced)
 	fmt.Printf("Deleted: %d\n", deleted)
+	fmt.Printf("Checked: %d\n", checked)
 	fmt.Printf("Errors: %d\n", errorCount)
 	if changed {
 		fmt.Printf("Written: %d\n", len(files))

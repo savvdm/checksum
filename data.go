@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 type dataMap map[string][]byte
@@ -51,8 +52,16 @@ func parseLine(line string) (file string, checksum []byte) {
 
 // read data map from the given file
 //
-func (data dataMap) read(csfile string) {
-	f, err := os.Open(csfile)
+func (data dataMap) read(fname string) (mod time.Time) {
+	info, err := os.Stat(fname)
+	if os.IsNotExist(err) {
+		fmt.Printf("File not found. To create new file, use 'touch %s' command\n", fname)
+		os.Exit(3)
+	}
+
+	mod = info.ModTime()
+
+	f, err := os.Open(fname)
 	check(err, 3)
 	defer f.Close()
 
@@ -63,11 +72,13 @@ func (data dataMap) read(csfile string) {
 	}
 	err = scanner.Err()
 	check(err, 4)
+
+	return
 }
 
 // write checksum data for the given (sorted) file list to the specified file
-func (data dataMap) write(csfile string, files []string) {
-	f, err := os.Create(csfile)
+func (data dataMap) write(fname string, files []string) {
+	f, err := os.Create(fname)
 	check(err, 10)
 	defer f.Close()
 
