@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"crypto/sha1"
 	"flag"
 	"fmt"
@@ -59,31 +58,16 @@ func main() {
 	}
 
 	files := make([]string, 0, len(data)*2) // file list for writting
-	readDir(root, "", func(file string, fileMod time.Time) {
+
+	readDir(root, "", func(file string, mod time.Time) {
 		if excludes.match(file) {
 			stats.report(Skipped, file)
 			return
 		}
 		visited[file] = true
 		files = append(files, file)
-		if sum, ok := data[file]; !ok || *checkAll || fileMod.After(inputMod) {
-			path := makePath(root, file)
-			if checksum, err := caclChecksum(path); err != nil {
-				stats.reportError(err)
-			} else {
-				stats.register(Checked)
-				if !ok {
-					stats.report(Added, file)
-					data[file] = checksum
-				} else {
-					if !bytes.Equal(sum, checksum) {
-						stats.report(Replaced, file)
-						data[file] = checksum
-					}
-				}
-			}
-		}
-		// TODO: verify existing checksums with --check
+		force := *checkAll || mod.After(inputMod)
+		data.check(file, root, force)
 	})
 
 	data.reportMissing(visited)

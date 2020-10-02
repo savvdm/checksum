@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -105,4 +106,24 @@ func (data dataMap) reportMissing(visited visitedFilesMap) {
 		}
 	}
 	return
+}
+
+func (data dataMap) check(file, root string, force bool) {
+	if sum, ok := data[file]; !ok || force {
+		path := makePath(root, file)
+		if checksum, err := caclChecksum(path); err != nil {
+			stats.reportError(err)
+		} else {
+			stats.register(Checked)
+			if !ok {
+				stats.report(Added, file)
+				data[file] = checksum
+			} else {
+				if !bytes.Equal(sum, checksum) {
+					stats.report(Replaced, file)
+					data[file] = checksum
+				}
+			}
+		}
+	}
 }
