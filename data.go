@@ -96,6 +96,28 @@ func (data dataMap) write(fname string, files []string) {
 	check(err, 10)
 }
 
+func (data dataMap) check(file, root string, force bool) {
+	sum, exists := data[file]
+	if exists && !force {
+		return
+	}
+	path := makePath(root, file)
+	if checksum, err := caclChecksum(path); err != nil {
+		stats.reportError(err)
+	} else {
+		stats.register(Checked)
+		if !exists {
+			stats.report(Added, file)
+			data[file] = checksum
+		} else {
+			if !bytes.Equal(sum, checksum) {
+				stats.report(Replaced, file)
+				data[file] = checksum
+			}
+		}
+	}
+}
+
 // report missing files
 // return the number of files missing
 func (data dataMap) reportMissing(visited visitedFilesMap) {
@@ -106,24 +128,4 @@ func (data dataMap) reportMissing(visited visitedFilesMap) {
 		}
 	}
 	return
-}
-
-func (data dataMap) check(file, root string, force bool) {
-	if sum, ok := data[file]; !ok || force {
-		path := makePath(root, file)
-		if checksum, err := caclChecksum(path); err != nil {
-			stats.reportError(err)
-		} else {
-			stats.register(Checked)
-			if !ok {
-				stats.report(Added, file)
-				data[file] = checksum
-			} else {
-				if !bytes.Equal(sum, checksum) {
-					stats.report(Replaced, file)
-					data[file] = checksum
-				}
-			}
-		}
-	}
 }
