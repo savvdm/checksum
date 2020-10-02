@@ -19,32 +19,32 @@ func (sk statKey) String() string {
 	return [...]string{"Added", "Replaced", "Deleted", "Checked", "Skipped", "Error"}[sk]
 }
 
-type statCounters [Error + 1]int
+type statCounts [Error + 1]int
 
-var stats statCounters
+var stats statCounts
 
-func (stats *statCounters) register(sk statKey) {
+func (stats *statCounts) register(sk statKey) {
 	stats[sk]++
 }
 
-func (stats *statCounters) report(sk statKey, file string) {
+func (stats *statCounts) report(sk statKey, file string) {
 	stats.register(sk)
 	label := sk.String()
 	fmt.Println(string(label[0]), file)
 }
 
-func (stats *statCounters) reportError(e error) {
+func (stats *statCounts) reportError(e error) {
 	stats.register(Error)
 	fmt.Println(e)
 }
 
-func (stats *statCounters) print() {
+func (stats *statCounts) print() {
 	for sk, count := range stats {
 		fmt.Printf("%s: %d\n", statKey(sk).String(), count)
 	}
 }
 
-func (stats *statCounters) sum(keys []statKey) (count int) {
+func (stats *statCounts) sum(keys []statKey) (count int) {
 	for _, sk := range keys {
 		count += stats[sk]
 	}
