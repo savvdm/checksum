@@ -21,11 +21,11 @@ func help() {
 
 // report missing files
 // return the number of files missing
-func (data dataMap) reportMissing(visited visitedFilesMap, status statusMap) {
+func (data dataMap) reportMissing(visited visitedFilesMap) {
 	for file := range data {
 		if _, ok := visited[file]; !ok {
 			// file not found - will not be saved
-			status.report(DELETED, file)
+			stats.report(Deleted, file)
 		}
 	}
 	return
@@ -45,7 +45,7 @@ func makePath(path, name string) string {
 func readDir(root string, prefix string, callback func(path string, mod time.Time)) {
 	f, err := os.Open(root)
 	if err != nil {
-		status.reportError(err)
+		stats.reportError(err)
 		return
 	}
 	defer f.Close()
@@ -67,7 +67,7 @@ func readDir(root string, prefix string, callback func(path string, mod time.Tim
 		files, err = f.Readdir(buflen)
 	}
 	if err != io.EOF {
-		status.reportError(err)
+		stats.reportError(err)
 	}
 }
 
@@ -132,11 +132,10 @@ func main() {
 		root = flag.Arg(1)
 	}
 
-	status := make(statusMap)
 	files := make([]string, 0, len(data)*2) // file list for writting
 	readDir(root, "", func(file string, fileMod time.Time) {
 		if excludes.match(file) {
-			status.report(SKIPPED, file)
+			stats.report(Skipped, file)
 			return
 		}
 		visited[file] = true
@@ -144,15 +143,15 @@ func main() {
 		if sum, ok := data[file]; !ok || *checkAll || fileMod.After(inputMod) {
 			path := makePath(root, file)
 			if checksum, err := caclChecksum(path); err != nil {
-				status.reportError(err)
+				stats.reportError(err)
 			} else {
-				status.register(CHECKED)
+				stats.register(Checked)
 				if !ok {
-					status.report(ADDED, file)
+					stats.report(Added, file)
 					data[file] = checksum
 				} else {
 					if !bytes.Equal(sum, checksum) {
-						status.report(REPLACED, file)
+						stats.report(Replaced, file)
 						data[file] = checksum
 					}
 				}
@@ -161,16 +160,16 @@ func main() {
 		// TODO: verify existing checksums with --check
 	})
 
-	data.reportMissing(visited, status)
+	data.reportMissing(visited)
 
-	changed := status.sum([]string{ADDED, REPLACED, DELETED}) > 0
+	changed := stats.sum([]statKey{Added, Replaced, Deleted}) > 0
 	if changed { // don't write file unless anything changed
 		sort.Strings(files)
 		data.write(dataFile, files)
 	}
 
 	// print stats
-	status.print([]string{ADDED, REPLACED, DELETED, CHECKED, SKIPPED, ERROR})
+	stats.print()
 	if changed {
 		fmt.Printf("Written: %d\n", len(files))
 	} else {

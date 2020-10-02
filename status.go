@@ -4,46 +4,49 @@ import (
 	"fmt"
 )
 
-type statusMap map[string]int
-
-var status = make(statusMap)
+type statKey int
 
 const (
-	ADDED    = "Added"
-	REPLACED = "Replaced"
-	DELETED  = "Deleted"
-	CHECKED  = "Checked"
-	SKIPPED  = "Skipped"
-	ERROR    = "Error"
+	Added = iota
+	Replaced
+	Deleted
+	Checked
+	Skipped
+	Error
 )
 
-func (status statusMap) register(s string) {
-	if v, ok := status[s]; ok {
-		status[s] = v + 1
-	} else {
-		status[s] = 1
-	}
+func (sk statKey) String() string {
+	return [...]string{"Added", "Replaced", "Deleted", "Checked", "Skipped", "Error"}[sk]
 }
 
-func (status statusMap) report(s string, file string) {
-	status.register(s)
-	fmt.Println(string(s[0]), file)
+type statCounters [Error + 1]int
+
+var stats statCounters
+
+func (stats *statCounters) register(sk statKey) {
+	stats[sk]++
 }
 
-func (status statusMap) reportError(e error) {
-	status.register(ERROR)
+func (stats *statCounters) report(sk statKey, file string) {
+	stats.register(sk)
+	label := sk.String()
+	fmt.Println(string(label[0]), file)
+}
+
+func (stats *statCounters) reportError(e error) {
+	stats.register(Error)
 	fmt.Println(e)
 }
 
-func (status statusMap) print(keys []string) {
-	for _, s := range keys {
-		fmt.Printf("%s: %d\n", s, status[s])
+func (stats *statCounters) print() {
+	for sk, count := range stats {
+		fmt.Printf("%s: %d\n", statKey(sk).String(), count)
 	}
 }
 
-func (status statusMap) sum(keys []string) (count int) {
-	for _, s := range keys {
-		count += status[s]
+func (stats *statCounters) sum(keys []statKey) (count int) {
+	for _, sk := range keys {
+		count += stats[sk]
 	}
 	return
 }
