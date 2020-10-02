@@ -94,3 +94,15 @@ func (data dataMap) write(fname string, files []string) {
 	err = w.Flush()
 	check(err, 10)
 }
+
+// report missing files
+// return the number of files missing
+func (data dataMap) reportMissing(visited visitedFilesMap) {
+	for file := range data {
+		if _, ok := visited[file]; !ok {
+			// file not found - will not be saved
+			stats.report(Deleted, file)
+		}
+	}
+	return
+}

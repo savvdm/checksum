@@ -17,18 +17,6 @@ func help() {
 	fmt.Println("Specify checsum file name")
 }
 
-// report missing files
-// return the number of files missing
-func (data dataMap) reportMissing(visited visitedFilesMap) {
-	for file := range data {
-		if _, ok := visited[file]; !ok {
-			// file not found - will not be saved
-			stats.report(Deleted, file)
-		}
-	}
-	return
-}
-
 func caclChecksum(file string) (checksum []byte, err error) {
 	f, err := os.Open(file)
 	if err != nil {
