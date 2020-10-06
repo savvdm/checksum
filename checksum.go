@@ -6,11 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
 	"time"
 )
-
-type visitedFilesMap map[string]bool
 
 func help() {
 	fmt.Println("Specify checsum file name")
@@ -57,15 +54,12 @@ func main() {
 		root = flag.Arg(1)
 	}
 
-	files := make([]string, 0, len(data)*2) // file list for writting
-
 	readDir(root, "", func(file string, mod time.Time) {
 		if excludes.match(file) {
 			stats.report(Skipped, file)
 			return
 		}
 		visited[file] = true
-		files = append(files, file)
 		force := *checkAll || mod.After(inputMod)
 		data.check(file, root, force)
 	})
@@ -74,14 +68,13 @@ func main() {
 
 	changed := stats.sum([]statKey{Added, Replaced, Deleted}) > 0
 	if changed { // don't write file unless anything changed
-		sort.Strings(files)
-		data.write(dataFile, files)
+		data.write(dataFile, visited)
 	}
 
 	// print stats
 	stats.print()
 	if changed {
-		fmt.Printf("Written: %d\n", len(files))
+		fmt.Printf("Written: %d\n", len(visited))
 	} else {
 		fmt.Println("No changes")
 	}

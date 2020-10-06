@@ -6,11 +6,13 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"time"
 )
 
 type dataMap map[string][]byte
+type visitedFilesMap map[string]bool
 
 const separator = "  " // Two-space separator used by sha1sum on Linux
 
@@ -77,8 +79,20 @@ func (data dataMap) read(fname string) (mod time.Time) {
 	return
 }
 
-// write checksum data for the given (sorted) file list to the specified file
-func (data dataMap) write(fname string, files []string) {
+// write checksum data to the specified file
+// only files in the visited map are written
+func (data dataMap) write(fname string, visited visitedFilesMap) {
+	files := make([]string, 0, len(visited))
+	for file := range visited {
+		files = append(files, file)
+	}
+	sort.Strings(files)
+	data.writeFiles(fname, files)
+}
+
+// write out data for the given files,
+// in the specified order
+func (data dataMap) writeFiles(fname string, files []string) {
 	f, err := os.Create(fname)
 	check(err, 10)
 	defer f.Close()
@@ -96,6 +110,8 @@ func (data dataMap) write(fname string, files []string) {
 	check(err, 10)
 }
 
+// check sha1 sum for the specified file
+// under the specified root
 func (data dataMap) check(file, root string, force bool) {
 	sum, exists := data[file]
 	if exists && !force {
