@@ -61,7 +61,14 @@ func main() {
 		}
 		visited[file] = true
 		force := *checkAll || mod.After(inputMod)
-		data.check(file, root, force)
+		if _, exists := data[file]; !exists || force {
+			path := makePath(root, file)
+			if sum, err := caclChecksum(path); err != nil {
+				stats.reportError(err)
+			} else {
+				data.update(file, sum)
+			}
+		}
 	})
 
 	data.reportMissing(visited)

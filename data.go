@@ -134,6 +134,22 @@ func (data dataMap) check(file, root string, force bool) {
 	}
 }
 
+// check sha1 sum for the specified file
+// under the specified root
+func (data dataMap) update(file string, checksum []byte) {
+	sum, exists := data[file]
+	if !exists {
+		stats.report(Added, file)
+		data[file] = sum
+	} else {
+		if !bytes.Equal(sum, checksum) {
+			stats.report(Replaced, file)
+			data[file] = checksum
+		}
+	}
+	stats.register(Checked)
+}
+
 // report missing files
 // return the number of files missing
 func (data dataMap) reportMissing(visited visitedFilesMap) {
