@@ -54,7 +54,6 @@ func parseLine(line string) (file string, checksum []byte) {
 }
 
 // read data map from the given file
-//
 func (data dataMap) read(fname string) (mod time.Time) {
 	info, err := os.Stat(fname)
 	if os.IsNotExist(err) {
@@ -150,7 +149,7 @@ func (data dataMap) update(file string, checksum []byte) {
 	stats.register(Checked)
 }
 
-// report missing files
+// report missing files (by checking against the specified map)
 // return the number of files missing
 func (data dataMap) reportMissing(visited visitedFilesMap) {
 	for file := range data {
