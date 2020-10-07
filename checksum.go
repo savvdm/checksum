@@ -41,7 +41,7 @@ func main() {
 	}
 
 	data := make(dataMap)
-	visited := make(visitedFilesMap)
+	visited := make(visitedFiles)
 
 	dataFile := flag.Arg(0)
 	inputMod := data.read(dataFile)
@@ -60,13 +60,14 @@ func main() {
 			return
 		}
 		visited[file] = true
-		force := params.mode == All || (params.mode == Modified && mod.After(inputMod))
+		force := params.mode == All || params.mode == Modified && mod.After(inputMod)
 		if _, exists := data[file]; !exists || force {
 			path := makePath(root, file)
 			if sum, err := caclChecksum(path); err != nil {
 				stats.reportError(err)
 			} else {
 				if !data.update(file, sum) {
+					// checksum not changed
 					stats.reportIf(params.reportOk(), Ok, file)
 				}
 			}
@@ -77,7 +78,7 @@ func main() {
 
 	changed := stats.sum([]statKey{Added, Replaced, Deleted}) > 0
 	if !params.dry && changed { // don't write file unless anything changed
-		data.write(dataFile, visited)
+		data.writeSorted(dataFile, visited)
 	}
 
 	if !params.nostat {

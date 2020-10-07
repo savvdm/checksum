@@ -12,7 +12,7 @@ import (
 )
 
 type dataMap map[string][]byte
-type visitedFilesMap map[string]bool
+type visitedFiles map[string]bool
 
 const separator = "  " // Two-space separator used by sha1sum on Linux
 
@@ -80,18 +80,18 @@ func (data dataMap) read(fname string) (mod time.Time) {
 
 // write checksum data to the specified file
 // only files in the visited map are written
-func (data dataMap) write(fname string, visited visitedFilesMap) {
+func (data dataMap) writeSorted(fname string, visited visitedFiles) {
 	files := make([]string, 0, len(visited))
 	for file := range visited {
 		files = append(files, file)
 	}
 	sort.Strings(files)
-	data.writeFiles(fname, files)
+	data.write(fname, files)
 }
 
 // write out data for the given files,
 // in the specified order
-func (data dataMap) writeFiles(fname string, files []string) {
+func (data dataMap) write(fname string, files []string) {
 	f, err := os.Create(fname)
 	check(err, 10)
 	defer f.Close()
@@ -135,13 +135,11 @@ func (data dataMap) update(file string, checksum []byte) (updated bool) {
 }
 
 // report missing files (by checking against the specified map)
-// return the number of files missing
-func (data dataMap) reportMissing(visited visitedFilesMap) {
+func (data dataMap) reportMissing(visited visitedFiles) {
 	for file := range data {
 		if _, ok := visited[file]; !ok {
 			// file not found - will not be saved
 			stats.report(Deleted, file)
 		}
 	}
-	return
 }
