@@ -56,7 +56,7 @@ func main() {
 
 	readDir(root, "", func(file string, mod time.Time) {
 		if params.excludes.match(file) {
-			stats.reportIf(!params.quiet, Skipped, file)
+			stats.reportIf(params.verbose, Skipped, file)
 			return
 		}
 		visited[file] = true

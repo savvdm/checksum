@@ -60,7 +60,7 @@ func (stats *statCounts) reportError(e error) {
 // print all stats
 func (stats *statCounts) print() {
 	for sk, count := range stats {
-		fmt.Printf("%s: %d\n", statKey(sk).String(), count)
+		fmt.Printf("%-12s%d\n", statKey(sk).String()+":", count)
 	}
 }
 
