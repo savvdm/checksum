@@ -1,6 +1,10 @@
 package main
 
-import "flag"
+import (
+	"flag"
+	"fmt"
+	"os"
+)
 
 type cmdParams struct {
 	mode     checkMode
@@ -11,6 +15,11 @@ type cmdParams struct {
 	dry      bool
 }
 
+func help() {
+	fmt.Printf("Usage: %s [params] checksum_file dir_to_check\n", os.Args[0])
+	flag.PrintDefaults()
+}
+
 func (params *cmdParams) init() {
 	params.mode = Modified // default mode
 	flag.Var(&params.mode, "check", "Check mode: new|modified|all")
@@ -19,7 +28,26 @@ func (params *cmdParams) init() {
 	flag.BoolVar(&params.quiet, "q", false, "Less detailed output")
 	flag.BoolVar(&params.nostat, "nostat", false, "Don't print stats")
 	flag.BoolVar(&params.dry, "n", false, "Don't save changes (dry run)")
+}
+
+func (params *cmdParams) parse() (dataFile string, root string) {
 	flag.Parse()
+
+	narg := flag.NArg()
+	if narg < 1 || narg > 2 {
+		help()
+		os.Exit(1)
+	}
+
+	dataFile = flag.Arg(0)
+
+	if narg > 1 {
+		root = flag.Arg(1)
+	} else {
+		root = "."
+	}
+
+	return
 }
 
 func (params *cmdParams) reportOk() bool {
