@@ -100,7 +100,14 @@ func (data dataMap) writeFiles(fname string, files []string) {
 
 	// write data
 	for _, file := range files {
-		strsum := hex.EncodeToString(data[file])
+		sum, ok := data[file]
+		if !ok {
+			panic("No checksum for " + file)
+		}
+		if sum == nil {
+			panic("Empty checksum for " + file)
+		}
+		strsum := hex.EncodeToString(sum)
 		_, err = fmt.Fprintf(f, "%s%s%s\n", strsum, separator, file)
 		check(err, 10)
 	}
@@ -111,42 +118,20 @@ func (data dataMap) writeFiles(fname string, files []string) {
 
 // check sha1 sum for the specified file
 // under the specified root
-func (data dataMap) check(file, root string, force bool) {
+func (data dataMap) update(file string, checksum []byte) (updated bool) {
 	sum, exists := data[file]
-	if exists && !force {
-		return
-	}
-	path := makePath(root, file)
-	if checksum, err := caclChecksum(path); err != nil {
-		stats.reportError(err)
-	} else {
-		stats.register(Checked)
-		if !exists {
-			stats.report(Added, file)
-			data[file] = checksum
-		} else {
-			if !bytes.Equal(sum, checksum) {
-				stats.report(Replaced, file)
-				data[file] = checksum
-			}
-		}
-	}
-}
-
-// check sha1 sum for the specified file
-// under the specified root
-func (data dataMap) update(file string, checksum []byte) {
-	sum, exists := data[file]
-	if !exists {
-		stats.report(Added, file)
-		data[file] = sum
-	} else {
+	if exists {
 		if !bytes.Equal(sum, checksum) {
 			stats.report(Replaced, file)
 			data[file] = checksum
+			updated = true
 		}
+	} else {
+		stats.report(Added, file)
+		data[file] = checksum
+		updated = true
 	}
-	stats.register(Checked)
+	return updated
 }
 
 // report missing files (by checking against the specified map)

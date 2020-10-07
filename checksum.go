@@ -10,7 +10,8 @@ import (
 )
 
 func help() {
-	fmt.Println("Specify checsum file name")
+	fmt.Printf("Usage: %s [params] checksum_file dir_to_check\n", os.Args[0])
+	flag.PrintDefaults()
 }
 
 func caclChecksum(file string) (checksum []byte, err error) {
@@ -31,11 +32,8 @@ func caclChecksum(file string) (checksum []byte, err error) {
 
 func main() {
 
-	var excludes excludePatterns
-
-	flag.Var(&excludes, "exclude", "File name pattern to exclude")
-	checkAll := flag.Bool("check", false, "Check all files")
-	flag.Parse()
+	var params cmdParams
+	params.init()
 
 	if flag.NArg() < 1 {
 		help()
@@ -47,7 +45,9 @@ func main() {
 
 	dataFile := flag.Arg(0)
 	inputMod := data.read(dataFile)
-	fmt.Printf("Read: %d\n", len(data))
+	if !params.nostat {
+		fmt.Printf("Read: %d\n", len(data))
+	}
 
 	root := "."
 	if flag.NArg() > 1 {
@@ -55,18 +55,20 @@ func main() {
 	}
 
 	readDir(root, "", func(file string, mod time.Time) {
-		if excludes.match(file) {
-			stats.report(Skipped, file)
+		if params.excludes.match(file) {
+			stats.reportIf(!params.quiet, Skipped, file)
 			return
 		}
 		visited[file] = true
-		force := *checkAll || mod.After(inputMod)
+		force := params.mode == All || (params.mode == Modified && mod.After(inputMod))
 		if _, exists := data[file]; !exists || force {
 			path := makePath(root, file)
 			if sum, err := caclChecksum(path); err != nil {
 				stats.reportError(err)
 			} else {
-				data.update(file, sum)
+				if !data.update(file, sum) {
+					stats.reportIf(params.reportOk(), Ok, file)
+				}
 			}
 		}
 	})
@@ -74,15 +76,16 @@ func main() {
 	data.reportMissing(visited)
 
 	changed := stats.sum([]statKey{Added, Replaced, Deleted}) > 0
-	if changed { // don't write file unless anything changed
+	if !params.dry && changed { // don't write file unless anything changed
 		data.write(dataFile, visited)
 	}
 
-	// print stats
-	stats.print()
-	if changed {
-		fmt.Printf("Written: %d\n", len(visited))
-	} else {
-		fmt.Println("No changes")
+	if !params.nostat {
+		stats.print()
+		if changed {
+			fmt.Printf("Written: %d\n", len(visited))
+		} else {
+			fmt.Println("No changes")
+		}
 	}
 }
