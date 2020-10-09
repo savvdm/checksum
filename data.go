@@ -140,11 +140,11 @@ func (data dataMap) update(file string, checksum []byte) (updated bool) {
 	return updated
 }
 
-// report missing files (by checking against the specified map)
+// remove files not found in the specified map
 func (data dataMap) filter(visited visitedFiles) {
 	for file := range data {
 		if _, ok := visited[file]; !ok {
-			delete(visited, file)
+			delete(data, file)
 			stats.report(Deleted, file)
 		}
 	}
