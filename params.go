@@ -13,6 +13,7 @@ type cmdParams struct {
 	quiet    bool
 	nostat   bool
 	dry      bool
+	outfile  string
 }
 
 func help() {
@@ -28,6 +29,7 @@ func (params *cmdParams) init() {
 	flag.BoolVar(&params.quiet, "q", false, "Less detailed output")
 	flag.BoolVar(&params.nostat, "nostat", false, "Don't print stats")
 	flag.BoolVar(&params.dry, "n", false, "Don't save changes (dry run)")
+	flag.StringVar(&params.outfile, "outfile", "", "Output file name")
 }
 
 func (params *cmdParams) parse() (dataFile string, root string) {

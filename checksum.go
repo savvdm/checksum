@@ -63,7 +63,11 @@ func main() {
 
 	changed := stats.sum([]statKey{Added, Replaced, Deleted}) > 0
 	if !params.dry && changed { // don't write file unless anything changed
-		data.writeSorted(dataFile, visited)
+		outfile := dataFile
+		if len(params.outfile) > 0 {
+			outfile = params.outfile
+		}
+		data.writeSorted(outfile, visited)
 	}
 
 	if !params.nostat {
