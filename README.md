@@ -18,7 +18,7 @@ For existing files, checksums in the data file are updated upon the check.
 Modified data file is saved under the same name.
 New name may be specified with `-outfile` (see below).
 
-===Usage
+**Usage**
 
     checksum [options] data_file [dir_to_check]
 
@@ -28,9 +28,28 @@ If no `dir_to_check` is specified, files under the current directory are checked
 
 `-check new|modified|all`
 
-`new` - calculate checksums for new files only
+`new` - Calculate checksums for new files only
 
-`modified` - calculate checksums for new files,
+`modified` - Calculate checksums for new files,
 and for files modified later than the data file.
 
-`all` - calculate checksums for all files found.
+`all` - Calculate checksums for all files found.
+
+The default is `-check modified` mode.
+
+`-exclude` - Regular expression for file path to exclude (or just a file name, like `my_temp_file`).
+More than one `exclude` parameter may be specified.
+
+`-nodelete` - Do not delete checksums for files not found under the specified folder.
+By default, missing files and their checksums are removed from the data file.
+
+`-outfile` - Save the file checksums to the specified file.
+By default, the input file is being rewritten.
+
+`-n` - "Dry run" - do not save anything.
+
+`-v` - Print `OK` messages for all files checked, even with `-check all` option.
+
+`-q` - Don't print `OK` messages for modified files being checked with `-check modified` (default) option.
+
+`-nostat` - Don't print statistics after the check is finished.
