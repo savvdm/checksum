@@ -38,7 +38,7 @@ and for files modified later than the data file.
 The default is `-check modified` mode.
 
 `-exclude` - Regular expression for file path to exclude (or just a file name, like `my_temp_file`).
-More than one `-exclude` parameter may be specified.
+Several `-exclude` parameters may be specified.
 
 `-nodelete` - Do not delete checksums for files not found under the specified folder.
 By default, missing files and their checksums are removed from the data file.
