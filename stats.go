@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 )
 
 type statKey int
@@ -54,13 +55,13 @@ func (stats *statCounts) reportKey(sk statKey, file string) {
 // count and report error
 func (stats *statCounts) reportError(e error) {
 	stats.register(Error)
-	fmt.Println(e)
+	fmt.Fprintln(os.Stderr, e)
 }
 
 // print all stats
 func (stats *statCounts) print() {
 	for sk, count := range stats {
-		fmt.Printf("%-12s%d\n", statKey(sk).String()+":", count)
+		fmt.Fprintf(os.Stderr, "%-12s%d\n", statKey(sk).String()+":", count)
 	}
 }
 

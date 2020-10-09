@@ -36,7 +36,7 @@ func main() {
 
 	inputMod := data.read(dataFile)
 	if !params.nostat {
-		fmt.Printf("Read: %d\n", len(data))
+		fmt.Fprintf(os.Stderr, "Read: %d\n", len(data))
 	}
 
 	readDir(root, "", func(file string, mod time.Time) {
@@ -77,9 +77,13 @@ func main() {
 	if !params.nostat {
 		stats.print()
 		if changed {
-			fmt.Printf("Written: %d\n", len(visited))
+			if params.dry {
+				fmt.Fprintf(os.Stderr, "Dry run, not written: %d\n", len(data))
+			} else {
+				fmt.Fprintf(os.Stderr, "Written: %d\n", len(data))
+			}
 		} else {
-			fmt.Println("No changes")
+			fmt.Fprintln(os.Stderr, "No changes")
 		}
 	}
 }
