@@ -78,14 +78,20 @@ func (data dataMap) read(fname string) (mod time.Time) {
 	return
 }
 
-// write checksum data to the specified file
-// only files in the visited map are written
-func (data dataMap) writeSorted(fname string, visited visitedFiles) {
-	files := make([]string, 0, len(visited))
-	for file := range visited {
+// sort the map's keys and return in a slice
+func (data dataMap) sortFiles() []string {
+	files := make([]string, 0, len(data))
+	for file := range data {
 		files = append(files, file)
 	}
 	sort.Strings(files)
+	return files
+}
+
+// write checksum data to the specified file
+// only files in the visited map are written
+func (data dataMap) writeSorted(fname string) {
+	files := data.sortFiles()
 	data.write(fname, files)
 }
 
@@ -135,10 +141,10 @@ func (data dataMap) update(file string, checksum []byte) (updated bool) {
 }
 
 // report missing files (by checking against the specified map)
-func (data dataMap) reportMissing(visited visitedFiles) {
+func (data dataMap) filter(visited visitedFiles) {
 	for file := range data {
 		if _, ok := visited[file]; !ok {
-			// file not found - will not be saved
+			delete(visited, file)
 			stats.report(Deleted, file)
 		}
 	}

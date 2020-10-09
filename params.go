@@ -14,6 +14,7 @@ type cmdParams struct {
 	nostat   bool
 	dry      bool
 	outfile  string
+	nodelete bool
 }
 
 func help() {
@@ -30,6 +31,7 @@ func (params *cmdParams) init() {
 	flag.BoolVar(&params.nostat, "nostat", false, "Don't print stats")
 	flag.BoolVar(&params.dry, "n", false, "Don't save changes (dry run)")
 	flag.StringVar(&params.outfile, "outfile", "", "Output file name")
+	flag.BoolVar(&params.nodelete, "nodelete", false, "Don't delete missing files from the data file")
 }
 
 func (params *cmdParams) parse() (dataFile string, root string) {

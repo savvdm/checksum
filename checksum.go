@@ -44,7 +44,9 @@ func main() {
 			stats.reportIf(params.verbose, Skipped, file)
 			return
 		}
-		visited[file] = true
+		if !params.nodelete {
+			visited[file] = true
+		}
 		force := params.mode == All || params.mode == Modified && mod.After(inputMod)
 		if _, exists := data[file]; !exists || force {
 			path := makePath(root, file)
@@ -59,7 +61,9 @@ func main() {
 		}
 	})
 
-	data.reportMissing(visited)
+	if !params.nodelete {
+		data.filter(visited)
+	}
 
 	changed := stats.sum([]statKey{Added, Replaced, Deleted}) > 0
 	if !params.dry && changed { // don't write file unless anything changed
@@ -67,7 +71,7 @@ func main() {
 		if len(params.outfile) > 0 {
 			outfile = params.outfile
 		}
-		data.writeSorted(outfile, visited)
+		data.writeSorted(outfile)
 	}
 
 	if !params.nostat {
