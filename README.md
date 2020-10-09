@@ -28,7 +28,7 @@ If no `dir_to_check` is specified, files under the current directory are checked
 
 `-check new|modified|all`
 
-`new` - Calculate checksums for new files only
+`new` - Calculate checksums for new files only.
 
 `modified` - Calculate checksums for new files,
 and for files modified later than the data file.
@@ -38,7 +38,7 @@ and for files modified later than the data file.
 The default is `-check modified` mode.
 
 `-exclude` - Regular expression for file path to exclude (or just a file name, like `my_temp_file`).
-More than one `exclude` parameter may be specified.
+More than one `-exclude` parameter may be specified.
 
 `-nodelete` - Do not delete checksums for files not found under the specified folder.
 By default, missing files and their checksums are removed from the data file.
