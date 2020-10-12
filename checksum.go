@@ -32,7 +32,6 @@ func main() {
 	dataFile, root := params.parse()
 
 	data := make(dataMap)
-	visited := make(visitedFiles)
 
 	inputMod := data.read(dataFile)
 	if !params.nostat {
@@ -44,11 +43,9 @@ func main() {
 			stats.reportIf(params.verbose, Skipped, file)
 			return
 		}
-		if !params.nodelete {
-			visited[file] = true
-		}
+		exists := data.setVisited(file)
 		force := params.mode == All || params.mode == Modified && mod.After(inputMod)
-		if _, exists := data[file]; !exists || force {
+		if !exists || force {
 			path := makePath(root, file)
 			if sum, err := caclChecksum(path); err != nil {
 				stats.reportError(err)
@@ -62,7 +59,7 @@ func main() {
 	})
 
 	if !params.nodelete {
-		data.filter(visited)
+		data.filter()
 	}
 
 	changed := stats.sum([]statKey{Added, Replaced, Deleted}) > 0

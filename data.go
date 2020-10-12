@@ -11,11 +11,16 @@ import (
 	"time"
 )
 
+// Checksum data in-memory storage
+// key - relative path/to/file
+// value[0] - visited flag (file found on disk)
+// value[1:] - checksum for the file
 type dataMap map[string][]byte
-type visitedFiles map[string]bool
 
+// checksum/path separator in the data file
 const separator = "  " // Two-space separator used by sha1sum on Linux
 
+// exit with the specified code in case of error
 func check(e error, code int) {
 	if e != nil {
 		fmt.Println(e)
@@ -53,6 +58,28 @@ func parseLine(line string) (file string, checksum []byte) {
 	return
 }
 
+// add checksum for the file
+// visited flag initialy cleared (zero)
+// existing checksum & flag are silently overriden
+func (data dataMap) setValue(file string, checksum []byte, visited bool) {
+	value := make([]byte, 1, len(checksum)+1) // visited flag + checksum
+	if visited {
+		value[0] = 1
+	}
+	value = append(value, checksum...)
+	data[file] = value // note: duplicate files are ignored
+}
+
+// set visited flag on existing file
+// return false if no such file exists in the data map
+func (data dataMap) setVisited(file string) (ok bool) {
+	value, ok := data[file]
+	if ok {
+		value[0] = 1
+	}
+	return
+}
+
 // read data map from the given file
 func (data dataMap) read(fname string) (mod time.Time) {
 	info, err := os.Stat(fname)
@@ -70,7 +97,7 @@ func (data dataMap) read(fname string) (mod time.Time) {
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		file, checksum := parseLine(scanner.Text())
-		data[file] = checksum // TODO: check for duplicate keys
+		data.setValue(file, checksum, false) // visited flag initially not set
 	}
 	err = scanner.Err()
 	check(err, 4)
@@ -106,14 +133,11 @@ func (data dataMap) write(fname string, files []string) {
 
 	// write data
 	for _, file := range files {
-		sum, ok := data[file]
+		value, ok := data[file]
 		if !ok {
 			panic("No checksum for " + file)
 		}
-		if sum == nil {
-			panic("Empty checksum for " + file)
-		}
-		strsum := hex.EncodeToString(sum)
+		strsum := hex.EncodeToString(value[1:])
 		_, err = fmt.Fprintf(f, "%s%s%s\n", strsum, separator, file)
 		check(err, 10)
 	}
@@ -122,28 +146,28 @@ func (data dataMap) write(fname string, files []string) {
 	check(err, 10)
 }
 
-// check sha1 sum for the specified file
-// under the specified root
+// update checksum for the specified file (and set visited flag)
 func (data dataMap) update(file string, checksum []byte) (updated bool) {
-	sum, exists := data[file]
-	if exists {
-		if !bytes.Equal(sum, checksum) {
+	value, ok := data[file]
+	if ok {
+		if !bytes.Equal(value[1:], checksum) {
 			stats.report(Replaced, file)
-			data[file] = checksum
+			copy(value[1:], checksum)
 			updated = true
 		}
+		value[0] = 1 // set visited flag
 	} else {
 		stats.report(Added, file)
-		data[file] = checksum
+		data.setValue(file, checksum, true) // visited = true
 		updated = true
 	}
-	return updated
+	return
 }
 
-// remove files not found in the specified map
-func (data dataMap) filter(visited visitedFiles) {
-	for file := range data {
-		if _, ok := visited[file]; !ok {
+// remove files not found on disk
+func (data dataMap) filter() {
+	for file, value := range data {
+		if value[0] == 0 { // file's not visited
 			delete(data, file)
 			stats.report(Deleted, file)
 		}
