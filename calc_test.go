@@ -29,6 +29,14 @@ func TestCalc(t *testing.T) {
 	verifyChecksum(t, sum)
 }
 
+func TestError(t *testing.T) {
+	const file = "test/missing.txt"
+	_, err := calc(file)
+	if err == nil {
+		t.Error("Did not fail on unexistent file\n")
+	}
+}
+
 func TestAsyncCalc(t *testing.T) {
 	const file = "data.txt"
 	in, out := startWorkers(1)
