@@ -42,3 +42,12 @@ func calcChecksums(in chan *checkRequest, out chan *checkResult) {
 		out <- &result
 	}
 }
+
+func startWorkers(num int) (in chan *checkRequest, out chan *checkResult) {
+	in = make(chan *checkRequest, 50)
+	out = make(chan *checkResult, 50)
+	for i := 0; i < num; i++ {
+		go calcChecksums(in, out)
+	}
+	return
+}

@@ -21,12 +21,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Read: %d\n", len(data))
 	}
 
-	in := make(chan *checkRequest, 50)
-	out := make(chan *checkResult, 50)
 	var numWorkers = runtime.GOMAXPROCS(0)
-	for i := 0; i < numWorkers; i++ {
-		go calcChecksums(in, out)
-	}
+	in, out := startWorkers(numWorkers)
 
 	readDir(root, "", func(file string, mod time.Time) {
 		if params.excludes.match(file) {
