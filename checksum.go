@@ -1,28 +1,11 @@
 package main
 
 import (
-	"crypto/sha1"
 	"fmt"
-	"io"
 	"os"
+	"runtime"
 	"time"
 )
-
-func caclChecksum(file string) (checksum []byte, err error) {
-	f, err := os.Open(file)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-
-	h := sha1.New()
-	if _, err = io.Copy(h, f); err != nil {
-		return
-	}
-
-	checksum = h.Sum(nil)
-	return
-}
 
 func main() {
 
@@ -38,6 +21,13 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Read: %d\n", len(data))
 	}
 
+	in := make(chan *checkRequest, 50)
+	out := make(chan *checkResult, 50)
+	var numWorkers = runtime.GOMAXPROCS(0)
+	for i := 0; i < numWorkers; i++ {
+		go calcChecksums(in, out)
+	}
+
 	readDir(root, "", func(file string, mod time.Time) {
 		if params.excludes.match(file) {
 			stats.reportIf(params.verbose, Skipped, file)
@@ -46,17 +36,30 @@ func main() {
 		exists := data.setVisited(file)
 		force := params.mode == All || params.mode == Modified && mod.After(inputMod)
 		if !exists || force {
-			path := makePath(root, file)
-			if sum, err := caclChecksum(path); err != nil {
-				stats.reportError(err)
-			} else {
-				if !data.update(file, sum) {
-					// checksum not changed
-					stats.reportIf(params.reportOk(), Ok, file)
-				}
+			//fmt.Printf("Enqueue %s/%s\n", root, file)
+			in <- &checkRequest{root, file} // enqueue checksum calculation
+		}
+		for {
+			select {
+			case res := <-out:
+				data.updateFrom(res)
+			default:
+				return
 			}
 		}
 	})
+
+	close(in)
+
+	for res := range out {
+		if res == nil {
+			if numWorkers--; numWorkers == 0 {
+				break
+			}
+		} else {
+			data.updateFrom(res)
+		}
+	}
 
 	if !params.nodelete {
 		data.filter()

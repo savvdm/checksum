@@ -164,6 +164,17 @@ func (data dataMap) update(file string, checksum []byte) (updated bool) {
 	return
 }
 
+// update from async calculation result
+func (data dataMap) updateFrom(res *checkResult) {
+	//fmt.Printf("Got checksum for %s\n", res.file)
+	if res.err == nil {
+		data.update(res.file, res.sum)
+		stats.register(Checked)
+	} else {
+		stats.reportError(res.err)
+	}
+}
+
 // remove files not found on disk
 func (data dataMap) filter() {
 	for file, value := range data {

@@ -11,13 +11,13 @@ const (
 	Added = iota
 	Replaced
 	Deleted
-	Ok
+	Checked
 	Skipped
 	Error
 )
 
 func (sk statKey) String() string {
-	return [...]string{"Added", "Replaced", "Deleted", "OK", "Skipped", "Error"}[sk]
+	return [...]string{"Added", "Replaced", "Deleted", "Checked", "Skipped", "Error"}[sk]
 }
 
 type statCounts [Error + 1]int
@@ -46,9 +46,7 @@ func (stats *statCounts) reportIf(cond bool, sk statKey, file string) {
 // print trace with the file name
 func (stats *statCounts) reportKey(sk statKey, file string) {
 	label := sk.String()
-	if sk != Ok {
-		label = string(label[0]) // use first (capital) letter as the label
-	}
+	label = string(label[0]) // use first (capital) letter as the label
 	fmt.Println(label, file)
 }
 
