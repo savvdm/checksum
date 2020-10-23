@@ -56,3 +56,36 @@ By default, the input file is being rewritten.
 `-q` - Don't print `OK` messages for modified files being checked with `-check modified` (default) option.
 
 `-nostat` - Don't print statistics after the check is finished.
+
+**Examples**
+
+    checksum data.sum ~/data
+
+Find all files under `~/data`, and calculate checksums for the files not found in `data.sum`.
+Also calculate and update checksums for files newer than `data.sum`.
+Save the updated version of `data.sum` file.
+
+    checksum -check all data.sum ~/data
+
+Calculate checksums for all files under `~/data`, and add/update them in `data.sum`.
+
+    checksum -check all -include some/path -exclude tempfile data.sum ~/data
+
+Check all files, whose path includes `some/path`, such as `~/data/some/path`.
+Exclude `tempfile` in any subfolder.
+
+    checksum -check all -n -include ^some/path data.sum ~/data
+
+Verify checksums for all files under ~/data/some/path. Keep `data.sum` unchanged.
+
+    checksum -delete data.sum ~/data
+
+Check files under `~/data`, as in the examples above. Remove data for files
+not found under `~/data`. Useful to keep `data.sum` "in sync" with actual data.
+
+**Additional note**
+
+It is recommended to keep checksum data file under source control, such as git.
+It is helpful to review the changes made by the tools before commiting.
+Undesired changes may be reverted easily. Alternatively, save the file under new name,
+and check the diff with the original file.
