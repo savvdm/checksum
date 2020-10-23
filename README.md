@@ -16,7 +16,7 @@ New files are always checked, and their checksums are added to the data file.
 For existing files, checksums in the data file are updated upon the check.
 
 Modified data file is saved under the same name.
-New name may be specified with `-outfile` (see below).
+New file name may be specified with `-outfile` (see below).
 
 **Usage**
 
@@ -37,11 +37,14 @@ and for files modified later than the data file.
 
 The default is `-check modified` mode.
 
-`-exclude` - Regular expression for file path to exclude (or just a file name, like `my_temp_file`).
+`-include` - Regular expression for file path to include (e.g. a subdir: `my/data/path`).
+Several `-include` parameters may be specified.
+
+`-exclude` - Regular expression for file path to exclude (e.g. a file name: `my_temp_file`).
 Several `-exclude` parameters may be specified.
 
-`-nodelete` - Do not delete checksums for files not found under the specified folder.
-By default, missing files and their checksums are removed from the data file.
+`-delete` - Delete checksums for files not found under the specified folder.
+By default, missing files and their checksums are retained in the output data file.
 
 `-outfile` - Save the file checksums to the specified file.
 By default, the input file is being rewritten.
