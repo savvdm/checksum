@@ -138,7 +138,7 @@ func (data dataMap) write(fname string, files []string) {
 			panic("No checksum for " + file)
 		}
 		strsum := hex.EncodeToString(value[1:])
-		_, err = fmt.Fprintf(f, "%s%s%s\n", strsum, separator, file)
+		_, err = fmt.Fprintf(w, "%s%s%s\n", strsum, separator, file)
 		check(err, 10)
 	}
 
