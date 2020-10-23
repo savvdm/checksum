@@ -4,11 +4,11 @@ import (
 	"testing"
 )
 
-func TestExcludePatterns(t *testing.T) {
-	var excludes excludePatterns
+func TestPatterns(t *testing.T) {
+	var patts Patterns
 
-	excludes.Set("\\.ext$")
-	excludes.Set("some")
+	patts.Set("\\.ext$")
+	patts.Set("some")
 
 	cases := map[string]bool{
 		"some/file/name":        true, // matching 'some'
@@ -17,7 +17,7 @@ func TestExcludePatterns(t *testing.T) {
 	}
 
 	for file, result := range cases {
-		if excludes.match(file) != result {
+		if patts.match(file) != result {
 			if result {
 				t.Errorf("Should have matched on %s\n", file)
 			} else {
