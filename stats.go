@@ -8,7 +8,8 @@ import (
 type statKey int
 
 const (
-	Added = iota
+	Visited = iota
+	Added
 	Replaced
 	Deleted
 	Checked
@@ -17,7 +18,7 @@ const (
 )
 
 func (sk statKey) String() string {
-	return [...]string{"Added", "Replaced", "Deleted", "Checked", "Skipped", "Error"}[sk]
+	return [...]string{"Visited", "Added", "Replaced", "Deleted", "Checked", "Skipped", "Error"}[sk]
 }
 
 type statCounts [Error + 1]int

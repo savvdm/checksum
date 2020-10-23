@@ -35,6 +35,7 @@ func main() {
 			return
 		}
 		// mark the file visited (and see if it exists)
+		stats.register(Visited)
 		exists := data.setVisited(file)
 		force := params.mode == All || params.mode == Modified && mod.After(inputMod)
 		if !exists || force {
