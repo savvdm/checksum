@@ -39,10 +39,19 @@ func main() {
 		exists := data.setVisited(file)
 		force := params.mode == All || params.mode == Modified && mod.After(inputMod)
 		if !exists || force {
-			in <- &checkRequest{root, file} // enqueue checksum calculation
-		}
-		// read calculated checksums & update data
-		for {
+			// enqueue checksum calculation
+			// don't block if channel is full
+			req := checkRequest{root, file}
+			for {
+				select {
+				case in <- &req:
+					return
+				case res := <-out:
+					data.updateFrom(res)
+				}
+			}
+		} else {
+			// read calculated checksums & update data
 			select {
 			case res := <-out:
 				data.updateFrom(res)
