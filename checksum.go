@@ -50,14 +50,6 @@ func main() {
 					data.updateFrom(res)
 				}
 			}
-		} else {
-			// read calculated checksums & update data
-			select {
-			case res := <-out:
-				data.updateFrom(res)
-			default:
-				return
-			}
 		}
 	})
 
