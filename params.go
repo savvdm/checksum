@@ -7,15 +7,16 @@ import (
 )
 
 type cmdParams struct {
-	mode     checkMode
-	includes Patterns
-	excludes Patterns
-	verbose  bool
-	quiet    bool
-	nostat   bool
-	dry      bool
-	outfile  string
-	delete   bool
+	mode       checkMode
+	includes   Patterns
+	excludes   Patterns
+	verbose    bool
+	quiet      bool
+	nostat     bool
+	dry        bool
+	outfile    string
+	delete     bool
+	cpuprofile string
 }
 
 func help() {
@@ -34,6 +35,7 @@ func (params *cmdParams) init() {
 	flag.BoolVar(&params.dry, "n", false, "Don't save changes (dry run)")
 	flag.StringVar(&params.outfile, "outfile", "", "Output file name")
 	flag.BoolVar(&params.delete, "delete", false, "Delete files missing on disk from the data file")
+	flag.StringVar(&params.cpuprofile, "cpuprofile", "", "write cpu profile to file")
 }
 
 func (params *cmdParams) parse() (dataFile string, root string) {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"runtime/pprof"
 	"time"
 )
 
@@ -13,6 +14,17 @@ func main() {
 	params.init()
 
 	dataFile, root := params.parse()
+
+	// setup cpu profiling
+	if params.cpuprofile != "" {
+		f, err := os.Create(params.cpuprofile)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
 
 	data := make(dataMap)
 
