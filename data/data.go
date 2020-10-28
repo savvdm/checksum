@@ -84,12 +84,12 @@ func (data FileSum) setValue(file string, checksum []byte, visited bool) {
 
 // set visited flag on existing file
 // return false if no such file exists in the data map
-func (data FileSum) SetVisited(file string) (ok bool) {
+func (data FileSum) MarkVisited(file string) bool {
 	value, ok := data[file]
 	if ok {
 		value[0] = 1
 	}
-	return
+	return ok
 }
 
 // read data map from the given file

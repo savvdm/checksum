@@ -65,7 +65,7 @@ func main() {
 		}
 		// mark the file visited (and see if it exists)
 		stats.register(Visited)
-		exists := fs.SetVisited(file)
+		exists := fs.MarkVisited(file)
 		force := params.mode == All || params.mode == Modified && mod.After(inputMod)
 		if !exists || force {
 			// enqueue checksum calculation
