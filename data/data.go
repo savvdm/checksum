@@ -1,4 +1,4 @@
-package main
+package data
 
 import (
 	"bufio"
@@ -11,14 +11,26 @@ import (
 	"time"
 )
 
+type UpdateStatus int
+
+const (
+	Unchanged = iota
+	Added
+	Replaced
+)
+
 // Checksum data in-memory storage
 // key - relative path/to/file
 // value[0] - visited flag (file found on disk)
 // value[1:] - checksum for the file
-type dataMap map[string][]byte
+type FileSum map[string][]byte
 
 // checksum/path separator in the data file
 const separator = "  " // Two-space separator used by sha1sum on Linux
+
+func (data FileSum) Len() int {
+	return len(data)
+}
 
 // exit with the specified code in case of error
 func check(e error, code int) {
@@ -61,7 +73,7 @@ func parseLine(line string) (file string, checksum []byte) {
 // add checksum for the file
 // visited flag initialy cleared (zero)
 // existing checksum & flag are silently overriden
-func (data dataMap) setValue(file string, checksum []byte, visited bool) {
+func (data FileSum) setValue(file string, checksum []byte, visited bool) {
 	value := make([]byte, 1, len(checksum)+1) // visited flag + checksum
 	if visited {
 		value[0] = 1
@@ -72,7 +84,7 @@ func (data dataMap) setValue(file string, checksum []byte, visited bool) {
 
 // set visited flag on existing file
 // return false if no such file exists in the data map
-func (data dataMap) setVisited(file string) (ok bool) {
+func (data FileSum) SetVisited(file string) (ok bool) {
 	value, ok := data[file]
 	if ok {
 		value[0] = 1
@@ -81,7 +93,7 @@ func (data dataMap) setVisited(file string) (ok bool) {
 }
 
 // read data map from the given file
-func (data dataMap) read(fname string) (mod time.Time) {
+func (data FileSum) Read(fname string) (mod time.Time) {
 	info, err := os.Stat(fname)
 	if os.IsNotExist(err) {
 		fmt.Printf("File not found. To create new file, use 'touch %s' command\n", fname)
@@ -106,7 +118,7 @@ func (data dataMap) read(fname string) (mod time.Time) {
 }
 
 // sort the map's keys and return in a slice
-func (data dataMap) sortFiles() []string {
+func (data FileSum) sortFiles() []string {
 	files := make([]string, 0, len(data))
 	for file := range data {
 		files = append(files, file)
@@ -117,14 +129,14 @@ func (data dataMap) sortFiles() []string {
 
 // write checksum data to the specified file
 // only files in the visited map are written
-func (data dataMap) writeSorted(fname string) {
+func (data FileSum) Write(fname string) {
 	files := data.sortFiles()
-	data.write(fname, files)
+	data.writeFiles(fname, files)
 }
 
 // write out data for the given files,
 // in the specified order
-func (data dataMap) write(fname string, files []string) {
+func (data FileSum) writeFiles(fname string, files []string) {
 	f, err := os.Create(fname)
 	check(err, 10)
 	defer f.Close()
@@ -147,40 +159,28 @@ func (data dataMap) write(fname string, files []string) {
 }
 
 // update checksum for the specified file (and set visited flag)
-func (data dataMap) update(file string, checksum []byte) (updated bool) {
+func (data FileSum) Update(file string, checksum []byte) (status UpdateStatus) {
 	value, ok := data[file]
 	if ok {
-		if !bytes.Equal(value[1:], checksum) {
-			stats.report(Replaced, file)
+		if bytes.Equal(value[1:], checksum) {
+			status = Unchanged
+		} else {
 			copy(value[1:], checksum)
-			updated = true
+			status = Replaced
 		}
-		value[0] = 1 // set visited flag
 	} else {
-		stats.report(Added, file)
 		data.setValue(file, checksum, true) // visited = true
-		updated = true
+		status = Added
 	}
 	return
 }
 
-// update from async calculation result
-func (data dataMap) updateFrom(res *checkResult) {
-	//fmt.Printf("Got checksum for %s\n", res.file)
-	if res.err == nil {
-		data.update(res.file, res.sum)
-		stats.register(Checked)
-	} else {
-		stats.reportError(res.err)
-	}
-}
-
 // remove files not found on disk
-func (data dataMap) filter() {
+func (data FileSum) Filter(deleted func(file string)) {
 	for file, value := range data {
 		if value[0] == 0 { // file's not visited
 			delete(data, file)
-			stats.report(Deleted, file)
+			deleted(file)
 		}
 	}
 }

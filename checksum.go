@@ -2,11 +2,28 @@ package main
 
 import (
 	"fmt"
+	"github.com/savvdm/checksum/data"
 	"os"
 	"runtime"
 	"runtime/pprof"
 	"time"
 )
+
+// update from async calculation result
+func updateFrom(fs data.FileSum, res *checkResult) {
+	//fmt.Printf("Got checksum for %s\n", res.file)
+	if res.err == nil {
+		switch fs.Update(res.file, res.sum) {
+		case data.Added:
+			stats.report(Added, res.file)
+		case data.Replaced:
+			stats.report(Replaced, res.file)
+		}
+		stats.register(Checked)
+	} else {
+		stats.reportError(res.err)
+	}
+}
 
 func main() {
 
@@ -26,11 +43,11 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	data := make(dataMap)
+	fs := make(data.FileSum)
 
-	inputMod := data.read(dataFile)
+	inputMod := fs.Read(dataFile)
 	if !params.nostat {
-		fmt.Fprintf(os.Stderr, "Read: %d\n", len(data))
+		fmt.Fprintf(os.Stderr, "Read: %d\n", fs.Len())
 	}
 
 	var numWorkers = runtime.GOMAXPROCS(0)
@@ -48,7 +65,7 @@ func main() {
 		}
 		// mark the file visited (and see if it exists)
 		stats.register(Visited)
-		exists := data.setVisited(file)
+		exists := fs.SetVisited(file)
 		force := params.mode == All || params.mode == Modified && mod.After(inputMod)
 		if !exists || force {
 			// enqueue checksum calculation
@@ -59,7 +76,7 @@ func main() {
 				case in <- &req:
 					return
 				case res := <-out:
-					data.updateFrom(res)
+					updateFrom(fs, res)
 				}
 			}
 		}
@@ -75,13 +92,15 @@ func main() {
 				break
 			}
 		} else {
-			data.updateFrom(res)
+			updateFrom(fs, res)
 		}
 	}
 
 	// remove files not found on disk
 	if params.delete {
-		data.filter()
+		fs.Filter(func(file string) {
+			stats.report(Deleted, file)
+		})
 	}
 
 	// output data
@@ -91,7 +110,7 @@ func main() {
 		if len(params.outfile) > 0 {
 			outfile = params.outfile
 		}
-		data.writeSorted(outfile)
+		fs.Write(outfile)
 	}
 
 	// report stats
@@ -99,9 +118,9 @@ func main() {
 		stats.print()
 		if changed {
 			if params.dry {
-				fmt.Fprintf(os.Stderr, "Dry run, not written: %d\n", len(data))
+				fmt.Fprintf(os.Stderr, "Dry run, not written: %d\n", fs.Len())
 			} else {
-				fmt.Fprintf(os.Stderr, "Written: %d\n", len(data))
+				fmt.Fprintf(os.Stderr, "Written: %d\n", fs.Len())
 			}
 		} else {
 			fmt.Fprintln(os.Stderr, "No changes")
