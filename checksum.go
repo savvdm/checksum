@@ -10,7 +10,7 @@ import (
 )
 
 // update from async calculation result
-func updateFrom(fs data.FileSum, res *checkResult) {
+func updateFrom(fs data.FileSum, res *checkResult, reportChecked bool) {
 	//fmt.Printf("Got checksum for %s\n", res.file)
 	if res.err == nil {
 		switch fs.Update(res.file, res.sum) {
@@ -18,8 +18,9 @@ func updateFrom(fs data.FileSum, res *checkResult) {
 			stats.report(Added, res.file)
 		case data.Replaced:
 			stats.report(Replaced, res.file)
+		case data.Unchanged:
+			stats.reportIf(reportChecked, Checked, res.file)
 		}
-		stats.register(Checked)
 	} else {
 		stats.reportError(res.err)
 	}
@@ -53,6 +54,10 @@ func main() {
 	var numWorkers = runtime.GOMAXPROCS(0)
 	in, out := startWorkers(numWorkers)
 
+	update := func(res *checkResult) {
+		updateFrom(fs, res, params.verbose)
+	}
+
 	readDir(root, "", func(file string, mod time.Time) {
 		// check includes (if any)
 		if len(params.includes) > 0 && !params.includes.match(file) {
@@ -76,7 +81,7 @@ func main() {
 				case in <- &req:
 					return
 				case res := <-out:
-					updateFrom(fs, res)
+					update(res)
 				}
 			}
 		}
@@ -92,7 +97,7 @@ func main() {
 				break
 			}
 		} else {
-			updateFrom(fs, res)
+			update(res)
 		}
 	}
 
