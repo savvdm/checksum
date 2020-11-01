@@ -51,11 +51,22 @@ By default, the input file is being rewritten.
 
 `-n` - "Dry run" - do not save anything.
 
-`-v` - Print `OK` messages for all files checked, even with `-check all` option.
+`-v` - Print more progress messages.
 
 `-q` - Don't print `OK` messages for modified files being checked with `-check modified` (default) option.
 
 `-nostat` - Don't print statistics after the check is finished.
+
+**Status Values**
+
+These status values apply to individual files. They are reported in progress messages and summary.
+
+`Visited` - file was found under the specified subdir  
+`Added (A)` - new file (checksum is added)  
+`Replaced (R)` - file has changed (checksum is updated)  
+`Deleted (D)` - file not found (checksum is removed)  
+`Checked (C)` - file has not changed (checksum is unchanged)  
+`Skipped (S)` - file excluded (or not included) by `exclude` or `include` filters  
 
 **Examples**
 
