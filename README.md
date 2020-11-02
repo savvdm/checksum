@@ -1,5 +1,6 @@
 # checksum
 Calculate &amp; update checksum for a set of files.
+Can be used to maintain & verify integrity of a large file archive.
 
 The program reads the data file, similar to one used by `sha1sum` tool:
 
@@ -9,8 +10,8 @@ The program reads the data file, similar to one used by `sha1sum` tool:
 It then read all files under the specified directory,
 and checks them against the checksums read from the data file.
 
-By default, only files newer than the data file are checked.
-This can be controlled by the `-check` option (see below).
+By default, only new files, and those newer than the checksum file are checked.
+This behaviour is controlled by `-check` command line switch, see below.
 
 New files are always checked, and their checksums are added to the data file.
 For existing files, checksums in the data file are updated upon the check.
@@ -20,7 +21,7 @@ New file name may be specified with `-outfile` (see below).
 
 **Usage**
 
-    checksum [options] data_file [dir_to_check]
+    checksum [options] checksum_file [dir_to_check]
 
 If no `dir_to_check` is specified, files under the current directory are checked.
 
@@ -46,8 +47,8 @@ Several `-exclude` parameters may be specified.
 `-delete` - Delete checksums for files not found under the specified folder.
 By default, missing files and their checksums are retained in the output data file.
 
-`-outfile` - Save the file checksums to the specified file.
-By default, the input file is being rewritten.
+`-outfile` - Save the checksums to the specified file.
+By default, the input file is rewritten.
 
 `-n` - "Dry run" - do not save anything.
 
@@ -65,7 +66,7 @@ These status values apply to individual files. They are reported in progress mes
 `Added (A)` - new file (checksum is added)  
 `Replaced (R)` - file has changed (checksum is updated)  
 `Deleted (D)` - file not found (checksum is removed)  
-`Checked (C)` - file has not changed (checksum is unchanged)  
+`Checked (OK)` - file has not changed (checksum is unchanged)
 `Skipped (S)` - file excluded (or not included) by `exclude` or `include` filters  
 
 **Examples**

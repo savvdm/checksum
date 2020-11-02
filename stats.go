@@ -46,8 +46,13 @@ func (stats *statCounts) reportIf(cond bool, sk statKey, file string) {
 
 // print trace with the file name
 func (stats *statCounts) reportKey(sk statKey, file string) {
-	label := sk.String()
-	label = string(label[0]) // use first (capital) letter as the label
+	var label string
+	if sk == Checked {
+		label = "OK"
+	} else {
+		label := sk.String()
+		label = string(label[0]) // use first (capital) letter as the label
+	}
 	fmt.Println(label, file)
 }
 
