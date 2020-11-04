@@ -1,4 +1,4 @@
-package main
+package lib
 
 import (
 	"io"
@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func makePath(path, name string) string {
+func MakePath(path, name string) string {
 	switch {
 	case len(path) == 0:
 		return name
@@ -18,11 +18,10 @@ func makePath(path, name string) string {
 	}
 }
 
-func readDir(root string, prefix string, callback func(path string, mod time.Time)) {
+func ReadDir(root string, prefix string, callback func(path string, mod time.Time)) error {
 	f, err := os.Open(root)
 	if err != nil {
-		stats.reportError(err)
-		return
+		return err
 	}
 	defer f.Close()
 
@@ -32,10 +31,10 @@ func readDir(root string, prefix string, callback func(path string, mod time.Tim
 	for err == nil {
 		for _, file := range files {
 			name := file.Name()
-			path := makePath(prefix, name)
+			path := MakePath(prefix, name)
 			if file.IsDir() {
-				subdir := makePath(root, name)
-				readDir(subdir, path, callback) // prefix current path
+				subdir := MakePath(root, name)
+				ReadDir(subdir, path, callback) // prefix current path
 			} else {
 				callback(path, file.ModTime())
 			}
@@ -43,6 +42,7 @@ func readDir(root string, prefix string, callback func(path string, mod time.Tim
 		files, err = f.Readdir(buflen)
 	}
 	if err != io.EOF {
-		stats.reportError(err)
+		return err
 	}
+	return nil
 }

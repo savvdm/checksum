@@ -2,28 +2,20 @@ package main
 
 import (
 	"fmt"
-	"github.com/savvdm/checksum/data"
+	"github.com/savvdm/checksum/lib"
 	"os"
 	"runtime"
 	"runtime/pprof"
 	"time"
 )
 
-// update from async calculation result
-func updateFrom(fs data.FileSum, res *checkResult, reportChecked bool) {
-	//fmt.Printf("Got checksum for %s\n", res.file)
-	if res.err == nil {
-		switch fs.Update(res.file, res.sum) {
-		case data.Added:
-			stats.report(Added, res.file)
-		case data.Replaced:
-			stats.report(Replaced, res.file)
-		case data.Unchanged:
-			stats.reportIf(reportChecked, Checked, res.file)
-		}
-	} else {
-		stats.reportError(res.err)
+func startProfiling(file string) {
+	f, err := os.Create(file)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
+	pprof.StartCPUProfile(f)
 }
 
 func main() {
@@ -35,42 +27,49 @@ func main() {
 
 	// setup cpu profiling
 	if params.cpuprofile != "" {
-		f, err := os.Create(params.cpuprofile)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-		pprof.StartCPUProfile(f)
+		startProfiling(params.cpuprofile)
 		defer pprof.StopCPUProfile()
 	}
 
-	fs := make(data.FileSum)
+	data := make(lib.FileSum)
 
-	inputMod := fs.Read(dataFile)
+	inputMod := data.Read(dataFile)
 	if !params.nostat {
-		fmt.Fprintf(os.Stderr, "Read: %d\n", fs.Len())
+		fmt.Fprintf(os.Stderr, "Read: %d\n", data.Len())
 	}
 
 	var numWorkers = runtime.GOMAXPROCS(0)
 	in, out := startWorkers(numWorkers)
 
+	var stats lib.StatCounts
+
+	// process checksum result
 	update := func(res *checkResult) {
-		updateFrom(fs, res, params.verbose)
+		if res.err == nil {
+			switch status := data.Update(res.file, res.sum); status {
+			case lib.Added, lib.Replaced:
+				stats.Report(status, res.file)
+			case lib.Checked:
+				stats.ReportIf(params.verbose, status, res.file)
+			}
+		} else {
+			stats.ReportError(res.err)
+		}
 	}
 
-	readDir(root, "", func(file string, mod time.Time) {
+	if err := lib.ReadDir(root, "", func(file string, mod time.Time) {
 		// check includes (if any)
 		if len(params.includes) > 0 && !params.includes.match(file) {
 			return
 		}
 		// check excludes
 		if len(params.excludes) > 0 && params.excludes.match(file) {
-			stats.reportIf(params.verbose, Skipped, file)
+			stats.ReportIf(params.verbose, lib.Skipped, file)
 			return
 		}
 		// mark the file visited (and see if it exists)
-		stats.register(Visited)
-		exists := fs.MarkVisited(file)
+		stats.Register(lib.Visited)
+		exists := data.MarkVisited(file)
 		force := params.mode == All || params.mode == Modified && mod.After(inputMod)
 		if !exists || force {
 			// enqueue checksum calculation
@@ -85,12 +84,15 @@ func main() {
 				}
 			}
 		}
-	})
+	}); err != nil {
+		println(err)
+		os.Exit(2)
+	}
 
 	// no more checksum calculations will be queued
 	close(in)
 
-	// read calculated checksums & update data
+	// read calculated checksums & update lib
 	for res := range out {
 		if res == nil {
 			if numWorkers--; numWorkers == 0 {
@@ -103,29 +105,29 @@ func main() {
 
 	// remove files not found on disk
 	if params.delete {
-		fs.Filter(func(file string) {
-			stats.report(Deleted, file)
+		data.Filter(func(file string) {
+			stats.Report(lib.Deleted, file)
 		})
 	}
 
-	// output data
-	changed := stats.sum([]statKey{Added, Replaced, Deleted}) > 0
+	// output lib
+	changed := stats.IsChanged()
 	if !params.dry && changed { // don't write file unless anything changed
 		outfile := dataFile
 		if len(params.outfile) > 0 {
 			outfile = params.outfile
 		}
-		fs.Write(outfile)
+		data.Write(outfile)
 	}
 
 	// report stats
 	if !params.nostat {
-		stats.print()
+		stats.Print()
 		if changed {
 			if params.dry {
-				fmt.Fprintf(os.Stderr, "Dry run, not written: %d\n", fs.Len())
+				fmt.Fprintf(os.Stderr, "Dry run, not written: %d\n", data.Len())
 			} else {
-				fmt.Fprintf(os.Stderr, "Written: %d\n", fs.Len())
+				fmt.Fprintf(os.Stderr, "Written: %d\n", data.Len())
 			}
 		} else {
 			fmt.Fprintln(os.Stderr, "No changes")

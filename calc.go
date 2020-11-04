@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha1"
+	"github.com/savvdm/checksum/lib"
 	"io"
 	"os"
 )
@@ -37,7 +38,7 @@ func calcChecksums(in chan *checkRequest, out chan *checkResult) {
 	for req := range in {
 		var result checkResult
 		result.file = req.file
-		path := makePath(req.root, req.file)
+		path := lib.MakePath(req.root, req.file)
 		result.sum, result.err = calc(path)
 		out <- &result
 	}

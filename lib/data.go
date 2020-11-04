@@ -1,4 +1,4 @@
-package data
+package lib
 
 import (
 	"bufio"
@@ -9,14 +9,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-)
-
-type UpdateStatus int
-
-const (
-	Unchanged = iota
-	Added
-	Replaced
 )
 
 // Checksum data in-memory storage
@@ -159,11 +151,11 @@ func (data FileSum) writeFiles(fname string, files []string) {
 }
 
 // update checksum for the specified file (and set visited flag)
-func (data FileSum) Update(file string, checksum []byte) (status UpdateStatus) {
+func (data FileSum) Update(file string, checksum []byte) (status StatKey) {
 	value, ok := data[file]
 	if ok {
 		if bytes.Equal(value[1:], checksum) {
-			status = Unchanged
+			status = Checked
 		} else {
 			copy(value[1:], checksum)
 			status = Replaced
