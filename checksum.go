@@ -39,21 +39,21 @@ func main() {
 	}
 
 	var numWorkers = runtime.GOMAXPROCS(0)
-	in, out := startWorkers(numWorkers)
+	in, out := lib.StartWorkers(numWorkers)
 
 	var stats lib.StatCounts
 
 	// process checksum result
-	update := func(res *checkResult) {
-		if res.err == nil {
-			switch status := data.Update(res.file, res.sum); status {
+	update := func(res *lib.CheckResult) {
+		if res.Err == nil {
+			switch status := data.Update(res.File, res.Sum); status {
 			case lib.Added, lib.Replaced:
-				stats.Report(status, res.file)
+				stats.Report(status, res.File)
 			case lib.Checked:
-				stats.ReportIf(params.verbose, status, res.file)
+				stats.ReportIf(params.verbose, status, res.File)
 			}
 		} else {
-			stats.ReportError(res.err)
+			stats.ReportError(res.Err)
 		}
 	}
 
@@ -74,7 +74,7 @@ func main() {
 		if !exists || force {
 			// enqueue checksum calculation
 			// don't block if channel is full
-			req := checkRequest{root, file}
+			req := lib.CheckRequest{root, file}
 			for {
 				select {
 				case in <- &req:
