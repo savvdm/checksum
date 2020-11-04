@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/savvdm/checksum/cmd"
 	"github.com/savvdm/checksum/lib"
 	"os"
 	"runtime"
@@ -20,21 +21,21 @@ func startProfiling(file string) {
 
 func main() {
 
-	var params cmdParams
-	params.init()
+	var params cmd.Params
+	params.Init()
 
-	dataFile, root := params.parse()
+	dataFile, root := params.Parse()
 
 	// setup cpu profiling
-	if params.cpuprofile != "" {
-		startProfiling(params.cpuprofile)
+	if params.Profile != "" {
+		startProfiling(params.Profile)
 		defer pprof.StopCPUProfile()
 	}
 
 	data := make(lib.FileSum)
 
 	inputMod := data.Read(dataFile)
-	if !params.nostat {
+	if !params.Nostat {
 		fmt.Fprintf(os.Stderr, "Read: %d\n", data.Len())
 	}
 
@@ -50,7 +51,7 @@ func main() {
 			case lib.Added, lib.Replaced:
 				stats.Report(status, res.File)
 			case lib.Checked:
-				stats.ReportIf(params.verbose, status, res.File)
+				stats.ReportIf(params.ReportOK(), status, res.File)
 			}
 		} else {
 			stats.ReportError(res.Err)
@@ -59,18 +60,18 @@ func main() {
 
 	if err := lib.ReadDir(root, "", func(file string, mod time.Time) {
 		// check includes (if any)
-		if len(params.includes) > 0 && !params.includes.Match(file) {
+		if len(params.Includes) > 0 && !params.Includes.Match(file) {
 			return
 		}
 		// check excludes
-		if len(params.excludes) > 0 && params.excludes.Match(file) {
-			stats.ReportIf(params.verbose, lib.Skipped, file)
+		if len(params.Excludes) > 0 && params.Excludes.Match(file) {
+			stats.ReportIf(params.Verbose, lib.Skipped, file)
 			return
 		}
 		// mark the file visited (and see if it exists)
 		stats.Register(lib.Visited)
 		exists := data.MarkVisited(file)
-		force := params.mode == All || params.mode == Modified && mod.After(inputMod)
+		force := params.Mode == cmd.All || params.Mode == cmd.Modified && mod.After(inputMod)
 		if !exists || force {
 			// enqueue checksum calculation
 			// don't block if channel is full
@@ -104,7 +105,7 @@ func main() {
 	}
 
 	// remove files not found on disk
-	if params.delete {
+	if params.Delete {
 		data.Filter(func(file string) {
 			stats.Report(lib.Deleted, file)
 		})
@@ -112,19 +113,19 @@ func main() {
 
 	// output lib
 	changed := stats.IsChanged()
-	if !params.dry && changed { // don't write file unless anything changed
+	if !params.Dry && changed { // don't write file unless anything changed
 		outfile := dataFile
-		if len(params.outfile) > 0 {
-			outfile = params.outfile
+		if len(params.Outfile) > 0 {
+			outfile = params.Outfile
 		}
 		data.Write(outfile)
 	}
 
 	// report stats
-	if !params.nostat {
+	if !params.Nostat {
 		stats.Print()
 		if changed {
-			if params.dry {
+			if params.Dry {
 				fmt.Fprintf(os.Stderr, "Dry run, not written: %d\n", data.Len())
 			} else {
 				fmt.Fprintf(os.Stderr, "Written: %d\n", data.Len())
