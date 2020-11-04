@@ -3,13 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/savvdm/checksum/lib"
 	"os"
 )
 
 type cmdParams struct {
 	mode       checkMode
-	includes   Patterns
-	excludes   Patterns
+	includes   lib.Patterns
+	excludes   lib.Patterns
 	verbose    bool
 	quiet      bool
 	nostat     bool

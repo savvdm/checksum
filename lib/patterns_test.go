@@ -1,4 +1,4 @@
-package main
+package lib
 
 import (
 	"testing"
@@ -17,7 +17,7 @@ func TestPatterns(t *testing.T) {
 	}
 
 	for file, result := range cases {
-		if patts.match(file) != result {
+		if patts.Match(file) != result {
 			if result {
 				t.Errorf("Should have matched on %s\n", file)
 			} else {

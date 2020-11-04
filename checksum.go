@@ -59,11 +59,11 @@ func main() {
 
 	if err := lib.ReadDir(root, "", func(file string, mod time.Time) {
 		// check includes (if any)
-		if len(params.includes) > 0 && !params.includes.match(file) {
+		if len(params.includes) > 0 && !params.includes.Match(file) {
 			return
 		}
 		// check excludes
-		if len(params.excludes) > 0 && params.excludes.match(file) {
+		if len(params.excludes) > 0 && params.excludes.Match(file) {
 			stats.ReportIf(params.verbose, lib.Skipped, file)
 			return
 		}

@@ -1,4 +1,4 @@
-package main
+package lib
 
 import "regexp"
 
@@ -13,7 +13,7 @@ func (patts *Patterns) Set(value string) error {
 	return nil
 }
 
-func (patts *Patterns) match(file string) bool {
+func (patts *Patterns) Match(file string) bool {
 	for _, patt := range *patts {
 		if patt.MatchString(file) {
 			return true
