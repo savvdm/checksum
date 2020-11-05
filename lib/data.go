@@ -88,8 +88,8 @@ func (data FileSum) MarkVisited(file string) bool {
 func (data FileSum) Read(fname string) (mod time.Time) {
 	info, err := os.Stat(fname)
 	if os.IsNotExist(err) {
-		fmt.Printf("File not found. To create new file, use 'touch %s' command\n", fname)
-		os.Exit(3)
+		mod = time.Now()
+		return // new file, nothing to load
 	}
 
 	mod = info.ModTime()
