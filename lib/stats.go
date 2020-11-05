@@ -48,7 +48,7 @@ func (stats *StatCounts) ReportKey(sk StatKey, file string) {
 	if sk == Checked {
 		label = "OK"
 	} else {
-		label := sk.String()
+		label = sk.String()
 		label = string(label[0]) // use first (capital) letter as the label
 	}
 	fmt.Println(label, file)
