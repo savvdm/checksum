@@ -89,7 +89,7 @@ func main() {
 	// no more checksum calculations will be queued
 	close(in)
 
-	// read calculated checksums & update lib
+	// read calculated checksums
 	for res := range out {
 		if res == nil {
 			if numWorkers--; numWorkers == 0 {
@@ -112,7 +112,7 @@ func main() {
 		lib.ReportStatus(file, status, params.ReportOK())
 	}
 
-	// output lib
+	// write data & report file status
 	changed := stats.HasChanged()
 	if !params.Dry && changed { // don't write file unless anything changed
 		outfile := dataFile
