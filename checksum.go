@@ -107,7 +107,10 @@ func main() {
 	}
 
 	files := data.SortKeys()
-	data.ReportFiles(files, params.ReportOK())
+
+	report := func(file string, status lib.Status) {
+		lib.ReportStatus(file, status, params.ReportOK())
+	}
 
 	// output lib
 	changed := stats.HasChanged()
@@ -116,7 +119,9 @@ func main() {
 		if len(params.Outfile) > 0 {
 			outfile = params.Outfile
 		}
-		data.WriteFiles(files, outfile)
+		data.WriteFiles(files, outfile, report)
+	} else {
+		data.ReportFiles(files, report)
 	}
 
 	// report stats

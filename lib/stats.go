@@ -36,6 +36,17 @@ func ReportFile(file string, status Status) {
 	}
 }
 
+func ReportStatus(file string, status Status, verbose bool) {
+	switch status {
+	case Added, Replaced, Deleted:
+		ReportFile(file, status)
+	case Checked:
+		if verbose {
+			ReportFile(file, status)
+		}
+	}
+}
+
 type StatCounts [Error + 1]int
 
 // increment the specified counter

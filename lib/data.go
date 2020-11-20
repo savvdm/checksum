@@ -135,24 +135,16 @@ func (data Data) SortKeys() []string {
 	return files
 }
 
-// sort the map's keys and return in a slice
-func (data Data) ReportFiles(files []string, verbose bool) {
+func (data Data) ReportFiles(files []string, report func(file string, status Status)) {
 	for _, file := range files {
 		fdat := data[file]
-		switch status := fdat.status(); status {
-		case Added, Replaced, Deleted:
-			ReportFile(file, status)
-		case Checked:
-			if verbose {
-				ReportFile(file, status)
-			}
-		}
+		report(file, fdat.status())
 	}
 }
 
 // write out data for the given files,
 // in the specified order
-func (data Data) WriteFiles(files []string, fname string) {
+func (data Data) WriteFiles(files []string, fname string, report func(file string, status Status)) {
 	f, err := os.Create(fname)
 	check(err, 10)
 	defer f.Close()
@@ -165,7 +157,9 @@ func (data Data) WriteFiles(files []string, fname string) {
 		if !ok {
 			panic("No checksum for " + file)
 		}
-		if fdat.status() != Deleted {
+		status := fdat.status()
+		report(file, status)
+		if status != Deleted {
 			_, err = fmt.Fprintf(w, "%s%s%s\n", fdat.checksumString(), separator, file)
 			check(err, 10)
 		}
