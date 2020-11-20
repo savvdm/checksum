@@ -32,7 +32,7 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	data := make(lib.FileSum)
+	data := make(lib.Data)
 
 	inputMod := data.Read(dataFile)
 	if !params.Nostat {
@@ -47,12 +47,8 @@ func main() {
 	// process checksum result
 	update := func(res *lib.CheckResult) {
 		if res.Err == nil {
-			switch status := data.Update(res.File, res.Sum); status {
-			case lib.Added, lib.Replaced:
-				stats.Report(status, res.File)
-			case lib.Checked:
-				stats.ReportIf(params.ReportOK(), status, res.File)
-			}
+			status := data.Update(res.File, res.Sum)
+			stats.Register(status)
 		} else {
 			stats.ReportError(res.Err)
 		}
@@ -106,19 +102,21 @@ func main() {
 
 	// remove files not found on disk
 	if params.Delete {
-		data.Filter(func(file string) {
-			stats.Report(lib.Deleted, file)
-		})
+		count := data.Filter()
+		stats.Set(lib.Deleted, count)
 	}
 
+	files := data.SortKeys()
+	data.ReportFiles(files, params.ReportOK())
+
 	// output lib
-	changed := stats.IsChanged()
+	changed := stats.HasChanged()
 	if !params.Dry && changed { // don't write file unless anything changed
 		outfile := dataFile
 		if len(params.Outfile) > 0 {
 			outfile = params.Outfile
 		}
-		data.Write(outfile)
+		data.WriteFiles(files, outfile)
 	}
 
 	// report stats

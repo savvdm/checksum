@@ -5,10 +5,11 @@ import (
 	"os"
 )
 
-type StatKey int
+type Status byte
 
 const (
-	Visited = iota
+	Read = iota
+	Visited
 	Added
 	Replaced
 	Deleted
@@ -17,41 +18,49 @@ const (
 	Error
 )
 
-func (sk StatKey) String() string {
-	return [...]string{"Visited", "Added", "Replaced", "Deleted", "Checked", "Skipped", "Error"}[sk]
+func (status Status) String() string {
+	return [...]string{"Read", "Visited", "Added", "Replaced", "Deleted", "Checked", "Skipped", "Error"}[status]
+}
+
+// print trace with the file name
+func ReportFile(file string, status Status) {
+	if status > Visited { // NOTE: Read & Visited are not reported
+		var label string
+		if status == Checked {
+			label = "OK"
+		} else {
+			label = status.String()
+			label = string(label[0]) // use first (capital) letter as the label
+		}
+		fmt.Println(label, file)
+	}
 }
 
 type StatCounts [Error + 1]int
 
 // increment the specified counter
-func (stats *StatCounts) Register(sk StatKey) {
-	stats[sk]++
+func (stats *StatCounts) Register(status Status) {
+	stats[status]++
+}
+
+// directly set the specified counter
+// NOTE: override any previous value
+func (stats *StatCounts) Set(status Status, count int) {
+	stats[status] = count
 }
 
 // increment the specified counter and print trace with the file name
-func (stats *StatCounts) Report(sk StatKey, file string) {
-	stats.Register(sk)
-	stats.ReportKey(sk, file)
+func (stats *StatCounts) Report(status Status, file string) {
+	stats.Register(status)
+	ReportFile(file, status)
 }
 
 // increment the specified counter and print trace if cond is true
-func (stats *StatCounts) ReportIf(cond bool, sk StatKey, file string) {
-	stats.Register(sk)
+func (stats *StatCounts) ReportIf(cond bool, status Status, file string) {
+	stats.Register(status)
 	if cond {
-		stats.ReportKey(sk, file)
+		ReportFile(file, status)
 	}
-}
-
-// print trace with the file name
-func (stats *StatCounts) ReportKey(sk StatKey, file string) {
-	var label string
-	if sk == Checked {
-		label = "OK"
-	} else {
-		label = sk.String()
-		label = string(label[0]) // use first (capital) letter as the label
-	}
-	fmt.Println(label, file)
 }
 
 // count and report error
@@ -62,19 +71,24 @@ func (stats *StatCounts) ReportError(e error) {
 
 // print all stats
 func (stats *StatCounts) Print() {
-	for sk, count := range stats {
-		fmt.Fprintf(os.Stderr, "%-12s%d\n", StatKey(sk).String()+":", count)
+	for status, count := range stats {
+		switch status {
+		case Read, Visited:
+			// don't print those
+		default:
+			fmt.Fprintf(os.Stderr, "%-12s%d\n", Status(status).String()+":", count)
+		}
 	}
 }
 
-func (stats *StatCounts) IsChanged() bool {
-	return stats.sum([]StatKey{Added, Replaced, Deleted}) > 0
+func (stats *StatCounts) HasChanged() bool {
+	return stats.sum([]Status{Added, Replaced, Deleted}) > 0
 }
 
 // calculate the sum of the specified stat counters
-func (stats *StatCounts) sum(keys []StatKey) (count int) {
-	for _, sk := range keys {
-		count += stats[sk]
+func (stats *StatCounts) sum(keys []Status) (count int) {
+	for _, status := range keys {
+		count += stats[status]
 	}
 	return
 }

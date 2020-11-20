@@ -11,16 +11,44 @@ import (
 	"time"
 )
 
+type fileData []byte
+
+func (fdat fileData) status() Status {
+	return Status(fdat[0])
+}
+
+func (fdat fileData) setStatus(status Status) {
+	fdat[0] = byte(status)
+}
+
+func (fdat fileData) checksum() []byte {
+	return fdat[1:]
+}
+
+func (fdat fileData) checksumString() string {
+	return hex.EncodeToString(fdat.checksum())
+}
+
+func (fdat fileData) checksumEqual(checksum []byte) bool {
+	return bytes.Equal(fdat.checksum(), checksum)
+}
+
+func makeFileData(checksum []byte, status Status) (fdat fileData) {
+	fdat = make([]byte, len(checksum)+1)
+	fdat.setStatus(status)
+	copy(fdat[1:], checksum)
+	return
+}
+
 // Checksum data in-memory storage
 // key - relative path/to/file
-// value[0] - visited flag (file found on disk)
-// value[1:] - checksum for the file
-type FileSum map[string][]byte
+// value - fileData structure (status+checksum)
+type Data map[string]fileData
 
 // checksum/path separator in the data file
 const separator = "  " // Two-space separator used by sha1sum on Linux
 
-func (data FileSum) Len() int {
+func (data Data) Len() int {
 	return len(data)
 }
 
@@ -62,30 +90,18 @@ func parseLine(line string) (file string, checksum []byte) {
 	return
 }
 
-// add checksum for the file
-// visited flag initialy cleared (zero)
-// existing checksum & flag are silently overriden
-func (data FileSum) setValue(file string, checksum []byte, visited bool) {
-	value := make([]byte, 1, len(checksum)+1) // visited flag + checksum
-	if visited {
-		value[0] = 1
-	}
-	value = append(value, checksum...)
-	data[file] = value // note: duplicate files are ignored
-}
-
 // set visited flag on existing file
 // return false if no such file exists in the data map
-func (data FileSum) MarkVisited(file string) bool {
-	value, ok := data[file]
-	if ok {
-		value[0] = 1
+func (data Data) MarkVisited(file string) bool {
+	if fdat, ok := data[file]; ok {
+		fdat.setStatus(Visited)
+		return true
 	}
-	return ok
+	return false
 }
 
 // read data map from the given file
-func (data FileSum) Read(fname string) (mod time.Time) {
+func (data Data) Read(fname string) (mod time.Time) {
 	info, err := os.Stat(fname)
 	if os.IsNotExist(err) {
 		mod = time.Now()
@@ -101,7 +117,7 @@ func (data FileSum) Read(fname string) (mod time.Time) {
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		file, checksum := parseLine(scanner.Text())
-		data.setValue(file, checksum, false) // visited flag initially not set
+		data[file] = makeFileData(checksum, Read)
 	}
 	err = scanner.Err()
 	check(err, 4)
@@ -110,7 +126,7 @@ func (data FileSum) Read(fname string) (mod time.Time) {
 }
 
 // sort the map's keys and return in a slice
-func (data FileSum) sortFiles() []string {
+func (data Data) SortKeys() []string {
 	files := make([]string, 0, len(data))
 	for file := range data {
 		files = append(files, file)
@@ -119,16 +135,24 @@ func (data FileSum) sortFiles() []string {
 	return files
 }
 
-// write checksum data to the specified file
-// only files in the visited map are written
-func (data FileSum) Write(fname string) {
-	files := data.sortFiles()
-	data.writeFiles(fname, files)
+// sort the map's keys and return in a slice
+func (data Data) ReportFiles(files []string, verbose bool) {
+	for _, file := range files {
+		fdat := data[file]
+		switch status := fdat.status(); status {
+		case Added, Replaced, Deleted:
+			ReportFile(file, status)
+		case Checked:
+			if verbose {
+				ReportFile(file, status)
+			}
+		}
+	}
 }
 
 // write out data for the given files,
 // in the specified order
-func (data FileSum) writeFiles(fname string, files []string) {
+func (data Data) WriteFiles(files []string, fname string) {
 	f, err := os.Create(fname)
 	check(err, 10)
 	defer f.Close()
@@ -137,42 +161,45 @@ func (data FileSum) writeFiles(fname string, files []string) {
 
 	// write data
 	for _, file := range files {
-		value, ok := data[file]
+		fdat, ok := data[file]
 		if !ok {
 			panic("No checksum for " + file)
 		}
-		strsum := hex.EncodeToString(value[1:])
-		_, err = fmt.Fprintf(w, "%s%s%s\n", strsum, separator, file)
-		check(err, 10)
+		if fdat.status() != Deleted {
+			_, err = fmt.Fprintf(w, "%s%s%s\n", fdat.checksumString(), separator, file)
+			check(err, 10)
+		}
 	}
 
 	err = w.Flush()
 	check(err, 10)
 }
 
-// update checksum for the specified file (and set visited flag)
-func (data FileSum) Update(file string, checksum []byte) (status StatKey) {
-	value, ok := data[file]
+// update checksum for the specified file
+func (data Data) Update(file string, checksum []byte) (status Status) {
+	fdat, ok := data[file]
 	if ok {
-		if bytes.Equal(value[1:], checksum) {
+		if fdat.checksumEqual(checksum) {
+			fdat.setStatus(Checked)
 			status = Checked
 		} else {
-			copy(value[1:], checksum)
+			data[file] = makeFileData(checksum, Replaced)
 			status = Replaced
 		}
 	} else {
-		data.setValue(file, checksum, true) // visited = true
+		data[file] = makeFileData(checksum, Added)
 		status = Added
 	}
 	return
 }
 
 // remove files not found on disk
-func (data FileSum) Filter(deleted func(file string)) {
-	for file, value := range data {
-		if value[0] == 0 { // file's not visited
-			delete(data, file)
-			deleted(file)
+func (data Data) Filter() (count int) {
+	for _, fdat := range data {
+		if fdat.status() == Read { // file's not visited
+			fdat.setStatus(Deleted)
+			count++
 		}
 	}
+	return
 }
