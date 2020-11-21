@@ -90,16 +90,6 @@ func parseLine(line string) (file string, checksum []byte) {
 	return
 }
 
-// set visited flag on existing file
-// return false if no such file exists in the data map
-func (data Data) MarkVisited(file string) bool {
-	if fdat, ok := data[file]; ok {
-		fdat.setStatus(Visited)
-		return true
-	}
-	return false
-}
-
 // read data map from the given file
 func (data Data) Read(fname string) (mod time.Time) {
 	info, err := os.Stat(fname)
@@ -125,16 +115,48 @@ func (data Data) Read(fname string) (mod time.Time) {
 	return
 }
 
-// sort the map's keys and return in a slice
-func (data Data) SortKeys() []string {
-	files := make([]string, 0, len(data))
-	for file := range data {
+// set visited flag on existing file
+// return false if no such file exists in the data map
+func (data Data) MarkVisited(file string) bool {
+	if fdat, ok := data[file]; ok {
+		fdat.setStatus(Visited)
+		return true
+	}
+	return false
+}
+
+// update checksum for the specified file
+func (data Data) Update(file string, checksum []byte) {
+	fdat, ok := data[file]
+	if ok {
+		if fdat.checksumEqual(checksum) {
+			fdat.setStatus(Checked)
+		} else {
+			data[file] = makeFileData(checksum, Replaced)
+		}
+	} else {
+		data[file] = makeFileData(checksum, Added)
+	}
+}
+
+// Finalize data update:
+// 1. Mark unvisited files for deletion
+// 2. Count file stats
+// 3. Sort and return file list
+func (data Data) Finalize(delete bool, stat *StatCounts) (files []string) {
+	files = make([]string, 0, len(data))
+	for file, fdat := range data {
+		if delete && fdat.status() == Read {
+			fdat.setStatus(Deleted) // file's not visited
+		}
+		stat.Register(fdat.status())
 		files = append(files, file)
 	}
 	sort.Strings(files)
-	return files
+	return
 }
 
+// Report file status
 func (data Data) ReportFiles(files []string, report func(file string, status Status)) {
 	for _, file := range files {
 		fdat := data[file]
@@ -142,8 +164,8 @@ func (data Data) ReportFiles(files []string, report func(file string, status Sta
 	}
 }
 
-// write out data for the given files,
-// in the specified order
+// Write out data for the given files, in the specified order.
+// Report file status.
 func (data Data) WriteFiles(files []string, fname string, report func(file string, status Status)) {
 	f, err := os.Create(fname)
 	check(err, 10)
@@ -167,33 +189,4 @@ func (data Data) WriteFiles(files []string, fname string, report func(file strin
 
 	err = w.Flush()
 	check(err, 10)
-}
-
-// update checksum for the specified file
-func (data Data) Update(file string, checksum []byte) (status Status) {
-	fdat, ok := data[file]
-	if ok {
-		if fdat.checksumEqual(checksum) {
-			fdat.setStatus(Checked)
-			status = Checked
-		} else {
-			data[file] = makeFileData(checksum, Replaced)
-			status = Replaced
-		}
-	} else {
-		data[file] = makeFileData(checksum, Added)
-		status = Added
-	}
-	return
-}
-
-// remove files not found on disk
-func (data Data) Filter() (count int) {
-	for _, fdat := range data {
-		if fdat.status() == Read { // file's not visited
-			fdat.setStatus(Deleted)
-			count++
-		}
-	}
-	return
 }

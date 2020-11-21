@@ -47,8 +47,7 @@ func main() {
 	// process checksum result
 	update := func(res *lib.CheckResult) {
 		if res.Err == nil {
-			status := data.Update(res.File, res.Sum)
-			stats.Register(status)
+			data.Update(res.File, res.Sum)
 		} else {
 			stats.ReportError(res.Err)
 		}
@@ -59,7 +58,7 @@ func main() {
 		if len(params.Includes) > 0 && !params.Includes.Match(file) {
 			return
 		}
-		// check excludes
+		// check excludes (if any)
 		if len(params.Excludes) > 0 && params.Excludes.Match(file) {
 			stats.ReportIf(params.Verbose, lib.Skipped, file)
 			return
@@ -67,6 +66,7 @@ func main() {
 		// mark the file visited (and see if it exists)
 		stats.Register(lib.Visited)
 		exists := data.MarkVisited(file)
+		// see if we need to calculate a checksum
 		force := params.Mode == cmd.All || params.Mode == cmd.Modified && mod.After(inputMod)
 		if !exists || force {
 			// enqueue checksum calculation
@@ -81,7 +81,7 @@ func main() {
 				}
 			}
 		}
-	}); err != nil {
+	}); err != nil { // ReadDir failed
 		println(err)
 		os.Exit(2)
 	}
@@ -100,14 +100,11 @@ func main() {
 		}
 	}
 
-	// remove files not found on disk
-	if params.Delete {
-		count := data.Filter()
-		stats.Set(lib.Deleted, count)
-	}
+	// sort keys and count stats
+	// mark unvisited files for deletion
+	files := data.Finalize(params.Delete, &stats)
 
-	files := data.SortKeys()
-
+	// print out file status
 	report := func(file string, status lib.Status) {
 		lib.ReportStatus(file, status, params.ReportOK())
 	}
